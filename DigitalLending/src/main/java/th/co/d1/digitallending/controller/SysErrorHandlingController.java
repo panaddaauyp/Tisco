@@ -66,9 +66,21 @@ public class SysErrorHandlingController {
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
-                String txnNo = json.getString("txn_no");
+                String txnNo = json.getString("txnId");
+                String txnDateEnd = json.getString("txnDateEnd");
+                String txnDateStart = json.getString("txnDateStart");
+                String txnEndTime = json.getString("txnEndTime");
+                String txnStartTime = json.getString("txnStartTime");
+                
+                if(txnStartTime != null && txnStartTime != ""){
+                    txnDateStart = txnDateStart + " " + txnStartTime;
+                }
+                if(txnEndTime != null && txnEndTime != ""){
+                    txnDateEnd = txnDateEnd + " " + txnStartTime;
+                }
+    
                 if (txnNo != null && txnNo != "") {
-                    returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, txnNo));
+                    returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, txnNo, txnDateStart,txnDateEnd));
                 } else {
                     returnVal.put("status", 500).put("description", "require : txn_no !");
                 }

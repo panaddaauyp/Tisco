@@ -538,7 +538,7 @@ public class SysErrorHandlingDao {
         }
     }
 
-    public JSONArray getListErrorhandling(String dbEnv, String txnNo) throws SQLException {
+    public JSONArray getListErrorhandling(String dbEnv, String txnNo, String txnDateStart, String txnDateEnd) throws SQLException {
         JSONArray list = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -546,10 +546,15 @@ public class SysErrorHandlingDao {
             Session session = getSessionMaster(dbEnv).openSession();
             List params = new ArrayList<>();
             StringBuilder cmd = new StringBuilder();
-            cmd.append("select * from t_sys_error_handling "
-                    + "where txn_no = '" + txnNo + "' "
-                    + "order by create_at DESC "
-                    + "LIMIT 1");
+            cmd.append("select * from t_sys_error_handling a"
+                    + " INNER JOIN ("
+                    + "	select  txn_no,max(create_at) as create_at from t_sys_error_handling where"
+                    + "	create_at BETWEEN TO_TIMESTAMP('" + txnDateStart + "', 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP('" + txnDateEnd + "', 'DD/MM/YYYY HH24:MI:SS')"
+                    + "	group by txn_no ) b on (a.txn_no = b.txn_no and a.create_at = b.create_at )");
+
+            if (txnNo != "" && txnNo != null && txnNo.length() > 0) {
+                cmd.append(" WHERE a.txn_no = '" + txnNo + "'");
+            }
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
 
             rs = ps.executeQuery();
