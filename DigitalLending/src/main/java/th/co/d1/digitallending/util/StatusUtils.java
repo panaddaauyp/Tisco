@@ -5,7 +5,8 @@
  */
 package th.co.d1.digitallending.util;
 
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
+import org.hibernate.HibernateException;
 import th.co.d1.digitallending.dao.SysLookupDao;
 import th.co.d1.digitallending.entity.Memlookup;
 
@@ -15,7 +16,7 @@ import th.co.d1.digitallending.entity.Memlookup;
  */
 public class StatusUtils {
 
-    final static Logger logger = Logger.getLogger(StatusUtils.class);
+    final static Logger logger = Logger.getLogger(StatusUtils.class.getName());
 
     public static Status getActive(String dbEnv) {
         try {
@@ -25,9 +26,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -40,9 +41,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -55,9 +56,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -70,9 +71,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -85,9 +86,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -100,9 +101,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -115,9 +116,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -130,9 +131,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -145,9 +146,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -160,9 +161,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -175,9 +176,9 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -190,13 +191,13 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
-    
+
     public static Status getCancel(String dbEnv) {
         try {
             Status status = new Status();
@@ -205,12 +206,12 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error(e.getMessage());
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
             return null;
         }
     }
-    
+
     public static Status getExpired(String dbEnv) {
         try {
             Status status = new Status();
@@ -219,8 +220,37 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error(e.getMessage());
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            return null;
+        }
+    }
+
+    public static Status getNotUse(String dbEnv) {
+        try {
+            Status status = new Status();
+            Memlookup memLookup = new SysLookupDao().getMemLookupByValue(dbEnv, "not use");
+            status.setStatusCode(ValidUtils.str2BigInteger(memLookup.getLookupcode()));
+            status.setStatusNameTh(memLookup.getLookupnameth());
+            status.setStatusNameEn(memLookup.getLookupnameen());
+            return status;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            return null;
+        }
+    }
+
+    public static Status getWaittoApprove2(String dbEnv) {
+        try {
+            Status status = new Status();
+            Memlookup memLookup = new SysLookupDao().getMemLookupByValue(dbEnv, "waittoapprove2");
+            status.setStatusCode(ValidUtils.str2BigInteger(memLookup.getLookupcode()));
+            status.setStatusNameTh(memLookup.getLookupnameth());
+            status.setStatusNameEn(memLookup.getLookupnameen());
+            return status;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -233,10 +263,87 @@ public class StatusUtils {
             status.setStatusNameTh(memLookup.getLookupnameth());
             status.setStatusNameEn(memLookup.getLookupnameen());
             return status;
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
+        }
+    }
+
+    public static Status getWaittoPause(String dbEnv) {
+        try {
+            Status status = new Status();
+            Memlookup memLookup = new SysLookupDao().getMemLookupByValue(dbEnv, "waittopause");
+            status.setStatusCode(ValidUtils.str2BigInteger(memLookup.getLookupcode()));
+            status.setStatusNameTh(memLookup.getLookupnameth());
+            status.setStatusNameEn(memLookup.getLookupnameen());
+            return status;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Status getWaittoTerminate(String dbEnv) {
+        try {
+            Status status = new Status();
+            Memlookup memLookup = new SysLookupDao().getMemLookupByValue(dbEnv, "waittoterminate");
+            status.setStatusCode(ValidUtils.str2BigInteger(memLookup.getLookupcode()));
+            status.setStatusNameTh(memLookup.getLookupnameth());
+            status.setStatusNameEn(memLookup.getLookupnameen());
+            return status;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Status getWaittoApprove3(String dbEnv) {
+        try {
+            Status status = new Status();
+            Memlookup memLookup = new SysLookupDao().getMemLookupByValue(dbEnv, "waittoapprove3");
+            status.setStatusCode(ValidUtils.str2BigInteger(memLookup.getLookupcode()));
+            status.setStatusNameTh(memLookup.getLookupnameth());
+            status.setStatusNameEn(memLookup.getLookupnameen());
+            return status;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Status getWaittoStart(String dbEnv) {
+        try {
+            Status status = new Status();
+            Memlookup memLookup = new SysLookupDao().getMemLookupByValue(dbEnv, "waittostart");
+            status.setStatusCode(ValidUtils.str2BigInteger(memLookup.getLookupcode()));
+            status.setStatusNameTh(memLookup.getLookupnameth());
+            status.setStatusNameEn(memLookup.getLookupnameen());
+            return status;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static String getErrorMessageByCode(String dbEnv, String lookupCode) {
+        try {
+            String message = null;
+            Memlookup memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, lookupCode);
+            if (!memLookup.getLookupcode().isEmpty() || !memLookup.getLookupnameen().isEmpty()){
+                message = memLookup.getLookupcode() + " : " + memLookup.getLookupnameen();
+            } else {
+                message = "Not Data LookupCode and LookupName";
+            }
+            return message;
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            return "Data Not Found";
         }
     }
 
@@ -290,5 +397,21 @@ public class StatusUtils {
 
         }
         return status;
+    }
+
+    public static String setRemark(String currStatus, String nStatus) {
+        String status = ValidUtils.null2NoData(currStatus) + "\n" + ValidUtils.null2NoData(nStatus);
+        return status;
+    }
+
+    public static boolean isWaitTerminate(String state, Integer statusActive) {
+        boolean isWait = false;
+        String s[] = ValidUtils.null2Separator(state, "").split("/");
+        if (s.length > 0 && s.length - 0 >= 0) {
+            if (statusActive == Integer.parseInt(s[s.length - 2])) {
+                isWait = true;
+            }
+        }
+        return isWait;
     }
 }

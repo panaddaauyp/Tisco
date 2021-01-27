@@ -8,7 +8,7 @@ package th.co.d1.digitallending.dao;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -29,13 +29,11 @@ import th.co.d1.digitallending.util.StatusUtils;
  */
 public class SysLogDao {
 
-    private Session session;
-    Logger logger = Logger.getLogger(SysLogDao.class);
+    Logger logger = Logger.getLogger(SysLogDao.class.getName());
 
     public SysLog saveSysLog(String dbEnv, String prodCode, String caseId, SysLog sysLog) {
         Transaction trans = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(SysLog.class);
             criteria.add(Restrictions.eq("prodCode", prodCode));
@@ -57,17 +55,12 @@ public class SysLogDao {
                 }
             }
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
             if (null != trans) {
                 trans.rollback();
             }
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            logger.info(e.getMessage());
+            throw e;
         }
         return sysLog;
     }
@@ -75,41 +68,36 @@ public class SysLogDao {
     public List<SysLog> getSysLogByNotStatus(String dbEnv, int status) {
         List<SysLog> list = new ArrayList<>();
         Transaction trans = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(SysLog.class);
             criteria.add(Restrictions.not(Restrictions.eq("status", status)));
             list = criteria.list();
 
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return list;
     }
 
     public SysLog getSysLogByUUID(String dbEnv, String uuid) {
         SysLog shelfProduct = new SysLog();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             shelfProduct = (SysLog) session.get(SysLog.class, uuid);
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfProduct;
     }

@@ -9,7 +9,7 @@ import java.util.Date;
 import javax.persistence.EntityManager;
 import javax.persistence.ParameterMode;
 import javax.persistence.StoredProcedureQuery;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
@@ -29,16 +29,15 @@ import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
  */
 public class FunctionDao {
 
-    private Session session;
-
-    Logger logger = Logger.getLogger(FunctionDao.class);
+    Logger logger = Logger.getLogger(FunctionDao.class.getName());
 
     public JSONObject getProductNumber(String dbEnv, Date sysdate, String prodUuid, String prodCode, String username) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "").put("data", "");
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
-            EntityManager entityManager = session.getEntityManagerFactory().createEntityManager();
+        Transaction trans = null;
+        EntityManager entityManager = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            entityManager = session.getEntityManagerFactory().createEntityManager();
             StoredProcedureQuery funcProdNo = entityManager.createStoredProcedureQuery("f_get_product_number")
                     .registerStoredProcedureParameter("p_doc_date", java.sql.Date.class, ParameterMode.IN)
                     .registerStoredProcedureParameter("p_prod_uuid", String.class, ParameterMode.IN)
@@ -51,18 +50,19 @@ public class FunctionDao {
                     .setParameter("p_user", username);
             funcProdNo.execute();
             result.put("data", (String) funcProdNo.getOutputParameterValue("output"));
-            entityManager.close();
             trans.commit();
-            session.close();
+            entityManager.close();
         } catch (HibernateException | JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            if (trans != null) {
+                trans.rollback();
+            }
+            if (entityManager != null) {
+                entityManager.close();
+            }
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
-        } finally {
-            if (null != session) {
-                session.close();
-            }
         }
         return result;
     }

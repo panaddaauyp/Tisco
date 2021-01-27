@@ -6,6 +6,8 @@
 package th.co.d1.digitallending.util;
 
 import com.tfglog.LogSingleton;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -13,6 +15,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,24 +33,36 @@ public class ConstainValue {
     private final String JDBC_DRIVER_MEM = "org.h2.Driver";
     private final String URL = "jdbc:h2:mem:" + memDBName + ";DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS TEST";
     private final String USER = "sa";
-    private final String PASS = "NhTpHEG4";
+//    private String memDbp = "";
+
+    private String getMemDbP() {
+        Properties properties = new Properties();
+        String resourceName = "config.properties";
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        try (InputStream resourceStream = loader.getResourceAsStream(resourceName)) {
+            properties.load(resourceStream);
+        } catch (IOException ex) {
+            Logger.getLogger(HibernateUtil.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return properties.getProperty("mem_dbp");
+    }
 //    public void loadH2Database() {
 //        try {
 //            createMemDb();
 //            setLookUp();
 //
 //        } catch (Exception ex) {
-////            log4j.error(ex);
+////            log4j.info(ex);
 //        }
 //    }
 
     public Server createMemDb() throws ClassNotFoundException {
         Server server = null;
-        System.out.println("-----------------------------------------------------------------------");
+        //System.out.println("-----------------------------------------------------------------------");
         Class.forName(JDBC_DRIVER_MEM);
         Connection con = null;
         try {
-            con = DriverManager.getConnection(URL, USER, PASS);
+            con = DriverManager.getConnection(URL, USER, getMemDbP());
             Statement st = con.createStatement();
             ResultSet rs = st.executeQuery("SELECT 'Memory Database is Online'");
             if (rs.next()) {
@@ -63,11 +78,11 @@ public class ConstainValue {
             con.close();
         } catch (SQLException ex) {
 //            System.out.println("Can't not create : " + ex);
-//            log4j.error(ex);
+//            log4j.info(ex);
         } finally {
 //            System.out.println("-----------------------------------------------------------------------");
             try {
-                if(!con.isClosed()){
+                if (!con.isClosed()) {
                     con.close();
                 }
             } catch (NullPointerException | SQLException ex) {
@@ -80,7 +95,7 @@ public class ConstainValue {
     public Connection getConnectionMem() throws SQLException {
         Connection conn = null;
         try {
-            conn = DriverManager.getConnection(URL, USER, PASS);
+            conn = DriverManager.getConnection(URL, USER, getMemDbP());
         } catch (SQLException ex) {
             if (conn == null) {
                 throw new IllegalStateException("Database connection was not initialized");
@@ -148,8 +163,8 @@ public class ConstainValue {
                             + "'" + UUID.randomUUID().toString() + "',"
                             + "'" + list.getUuid() + "',"
                             + "'" + list.getLookupCode() + "',"
-                            + "'" + list.getLookupNameTh() + "',"
-                            + "'" + list.getLookupNameEn() + "',"
+                            + "'" + (null == list.getLookupNameTh() ? list.getLookupNameTh() : list.getLookupNameTh().replaceAll("'", "''")) + "',"
+                            + "'" + (null == list.getLookupNameEn() ? list.getLookupNameEn() : list.getLookupNameEn().replaceAll("'", "''")) + "',"
                             + "'" + list.getLookupType() + "',"
                             + "'" + list.getLookupValue() + "',"
                             + "'" + list.getAttr1() + "',"
@@ -162,10 +177,10 @@ public class ConstainValue {
                             + "'" + list.getAttr8() + "',"
                             + "'" + list.getAttr9() + "',"
                             + "'" + dbEnv + "',"
-                            + "'" + list.getFlagEdit() + "',"
-                            + "'" + list.getFlagCreate() + "',"
+                            + "'" + (null == list.getFlagEdit() ? false : list.getFlagEdit()) + "',"
+                            + "'" + (null == list.getFlagCreate() ? false : list.getFlagCreate()) + "',"
                             + "'" + list.getStatus() + "',"
-                            + "'" + list.getDescription() + "'"
+                            + "'" + (null == list.getDescription() ? list.getDescription() : list.getDescription().replaceAll("'", "''")) + "'"
                             + ")";
                     stmt.executeUpdate(lookupCmd);
                 }
@@ -173,8 +188,9 @@ public class ConstainValue {
             stmt.close();
             conn.close();
         } catch (SQLException | ClassNotFoundException e) {
-            //Handle errors for JDBC
             e.printStackTrace();
+            //Handle errors for JDBC
+            //e.printStackTrace();
         } //Handle errors for Class.forName
         finally {
             //finally block used to close resources
@@ -186,7 +202,7 @@ public class ConstainValue {
                     conn.close();
                 }
             } catch (SQLException se) {
-                se.printStackTrace();
+                //e.printStackTrace();
             } //end finally try
         } //end try
     }
@@ -212,8 +228,8 @@ public class ConstainValue {
                             + "'" + UUID.randomUUID().toString() + "',"
                             + "'" + list.getUuid() + "',"
                             + "'" + list.getLookupCode() + "',"
-                            + "'" + list.getLookupNameTh() + "',"
-                            + "'" + list.getLookupNameEn() + "',"
+                            + "'" + (null == list.getLookupNameTh() ? list.getLookupNameTh() : list.getLookupNameTh().replaceAll("'", "''")) + "',"
+                            + "'" + (null == list.getLookupNameEn() ? list.getLookupNameEn() : list.getLookupNameEn().replaceAll("'", "''")) + "',"
                             + "'" + list.getLookupType() + "',"
                             + "'" + list.getLookupValue() + "',"
                             + "'" + list.getAttr1() + "',"
@@ -226,10 +242,10 @@ public class ConstainValue {
                             + "'" + list.getAttr8() + "',"
                             + "'" + list.getAttr9() + "',"
                             + "'" + dbEnv + "',"
-                            + "'" + list.getFlagEdit() + "',"
-                            + "'" + list.getFlagCreate() + "',"
+                            + "'" + (null == list.getFlagEdit() ? false : list.getFlagEdit()) + "',"
+                            + "'" + (null == list.getFlagCreate() ? false : list.getFlagCreate()) + "',"
                             + "'" + list.getStatus() + "',"
-                            + "'" + list.getDescription() + "'"
+                            + "'" + (null == list.getDescription() ? list.getDescription() : list.getDescription().replaceAll("'", "''")) + "'"
                             + ")";
                     stmt.executeUpdate(memLookupCmd);
                 }
@@ -238,7 +254,7 @@ public class ConstainValue {
             conn.close();
         } catch (SQLException | ClassNotFoundException e) {
             //Handle errors for JDBC
-            e.printStackTrace();
+            //e.printStackTrace();
             ret = 0;
         } //Handle errors for Class.forName
         finally {
@@ -251,7 +267,7 @@ public class ConstainValue {
                     conn.close();
                 }
             } catch (SQLException se) {
-                se.printStackTrace();
+                //e.printStackTrace();
                 ret = 0;
             } //end finally try
         } //end try

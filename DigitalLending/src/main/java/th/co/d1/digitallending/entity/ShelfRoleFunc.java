@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package th.co.d1.digitallending.entity;
 
 import java.io.Serializable;
@@ -26,9 +25,8 @@ import javax.validation.constraints.Size;
  *
  * @author Kritsana Sasai
  *
- * DataOne Asia (Thailand) Company Limited
- * 1023 MS Siam Tower, 30th Floor, Rama 3 Rd., 
- * Chongnonsi, Yannawa, Bangkok, 10120 
+ * DataOne Asia (Thailand) Company Limited 1023 MS Siam Tower, 30th Floor, Rama
+ * 3 Rd., Chongnonsi, Yannawa, Bangkok, 10120
  *
  * @create 19-03-2020 11:06:02 AM
  */
@@ -49,32 +47,32 @@ public class ShelfRoleFunc implements Serializable {
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "f_create")
-    private String fCreate;
+    private Character fCreate;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "f_edit")
-    private String fEdit;
+    private Character fEdit;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "f_delete")
-    private String fDelete;
+    private Character fDelete;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "f_preview")
-    private String fPreview;
+    private Character fPreview;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "f_export")
-    private String fExport;
+    private Character fExport;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1)
     @Column(name = "f_approve")
-    private String fApprove;
+    private Character fApprove;
     @Size(max = 2147483647)
     @Column(name = "attr1")
     private String attr1;
@@ -126,10 +124,25 @@ public class ShelfRoleFunc implements Serializable {
     @Size(max = 100)
     @Column(name = "update_by")
     private String updateBy;
+    @Basic(optional = false)
+    @NotNull
+    @Size(min = 1, max = 1)
+    @Column(name = "f_terminate")
+    private Character fTerminate;
+    @Basic(optional = false)
+    @NotNull
+    @Size(min = 1, max = 1)
+    @Column(name = "f_pause")
+    private Character fPause;
+    @Basic(optional = false)
+    @NotNull
+    @Size(min = 1, max = 1)
+    @Column(name = "f_start")
+    private Character fStart;
     @JoinColumn(name = "role_menu_id", referencedColumnName = "uuid")
     @ManyToOne(optional = false)
     private ShelfRoleMenu roleMenuId;
-
+    
     public ShelfRoleFunc() {
     }
 
@@ -137,7 +150,7 @@ public class ShelfRoleFunc implements Serializable {
         this.uuid = uuid;
     }
 
-    public ShelfRoleFunc(String uuid, String fCreate, String fEdit, String fDelete, String fPreview, String fExport, String fApprove, int status, String createBy) {
+    public ShelfRoleFunc(String uuid, Character fCreate, Character fEdit, Character fDelete, Character fPreview, Character fExport, Character fApprove, Character fTerminate, Character fPause, Character fStart, int status, String createBy) {
         this.uuid = uuid;
         this.fCreate = fCreate;
         this.fEdit = fEdit;
@@ -145,6 +158,9 @@ public class ShelfRoleFunc implements Serializable {
         this.fPreview = fPreview;
         this.fExport = fExport;
         this.fApprove = fApprove;
+        this.fTerminate = fTerminate;
+        this.fPause = fPause;
+        this.fStart = fStart;
         this.status = status;
         this.createBy = createBy;
     }
@@ -157,51 +173,51 @@ public class ShelfRoleFunc implements Serializable {
         this.uuid = uuid;
     }
 
-    public String getFCreate() {
+    public Character getFCreate() {
         return fCreate;
     }
 
-    public void setFCreate(String fCreate) {
+    public void setFCreate(Character fCreate) {
         this.fCreate = fCreate;
     }
 
-    public String getFEdit() {
+    public Character getFEdit() {
         return fEdit;
     }
 
-    public void setFEdit(String fEdit) {
+    public void setFEdit(Character fEdit) {
         this.fEdit = fEdit;
     }
 
-    public String getFDelete() {
+    public Character getFDelete() {
         return fDelete;
     }
 
-    public void setFDelete(String fDelete) {
+    public void setFDelete(Character fDelete) {
         this.fDelete = fDelete;
     }
 
-    public String getFPreview() {
+    public Character getFPreview() {
         return fPreview;
     }
 
-    public void setFPreview(String fPreview) {
+    public void setFPreview(Character fPreview) {
         this.fPreview = fPreview;
     }
 
-    public String getFExport() {
+    public Character getFExport() {
         return fExport;
     }
 
-    public void setFExport(String fExport) {
+    public void setFExport(Character fExport) {
         this.fExport = fExport;
     }
 
-    public String getFApprove() {
+    public Character getFApprove() {
         return fApprove;
     }
 
-    public void setFApprove(String fApprove) {
+    public void setFApprove(Character fApprove) {
         this.fApprove = fApprove;
     }
 
@@ -331,6 +347,29 @@ public class ShelfRoleFunc implements Serializable {
 
     public void setUpdateBy(String updateBy) {
         this.updateBy = updateBy;
+    }
+    public Character getfTerminate() {
+        return fTerminate;
+    }
+
+    public void setfTerminate(Character fTerminate) {
+        this.fTerminate = fTerminate;
+    }
+
+    public Character getfPause() {
+        return fPause;
+    }
+
+    public void setfPause(Character fPause) {
+        this.fPause = fPause;
+    }
+
+    public Character getfStart() {
+        return fStart;
+    }
+
+    public void setfStart(Character fStart) {
+        this.fStart = fStart;
     }
 
     public ShelfRoleMenu getRoleMenuId() {

@@ -5,11 +5,16 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
+import com.google.common.io.Resources;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.Metadata;
@@ -33,24 +38,28 @@ public class HibernateUtil {
         Map<String, SessionFactory> mSessionFactory = new HashMap<>();
         try {
             String fileName = "db.json";
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+//            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-            File file = new File(classLoader.getResource(fileName).getFile());
+//            File file = new File(classLoader.getResource(fileName).getFile());
             //Read File Content
-            String content = new String(Files.readAllBytes(file.toPath()));
+//            String content = new String(Files.readAllBytes(file.toPath()));
+            URL fileResource = Resources.getResource(fileName);
+            String content = Resources.toString(fileResource, StandardCharsets.UTF_8);
             JSONObject dtObj = new JSONObject(content);
             for (String dbEnvVal : dtObj.keySet()) {
                 JSONObject db = dtObj.getJSONObject(dbEnvVal);
                 String dbName = db.getString("database_name");
                 String username = db.getString("secretname");
-                String pwd = db.getString("region");
+                String pDb = db.getString("region");
                 if (dbName != null && !dbName.isEmpty()) {
+//                    String url = String.format("jdbc:postgresql://db.d1asia.co.th:5432/%s", dbName);
                     String url = String.format("jdbc:postgresql://172.24.20.90:5432/%s", dbName);
+//                    String url = String.format("jdbc:postgresql://localhost:5432/%s", dbName);
                     Configuration cfg = new Configuration().configure("hibernate.cfg.xml");
                     StandardServiceRegistryBuilder standardServiceRegistryBuilder = cfg.getStandardServiceRegistryBuilder();
                     standardServiceRegistryBuilder.applySetting("hibernate.connection.url", url);
                     standardServiceRegistryBuilder.applySetting("hibernate.connection.username", username);
-                    standardServiceRegistryBuilder.applySetting("hibernate.connection.password", pwd);
+                    standardServiceRegistryBuilder.applySetting("hibernate.connection.password", pDb);
                     serviceRegistry = standardServiceRegistryBuilder.build();
                     Metadata metadata = new MetadataSources(serviceRegistry).getMetadataBuilder().build();
                     mSessionFactory.put(dbEnvVal, metadata.getSessionFactoryBuilder().build());
@@ -65,17 +74,19 @@ public class HibernateUtil {
             throw new ExceptionInInitializerError(ex);
         }
     }
-*/
+     */
 
     private static Map<String, SessionFactory> buildSessionFactoryMaster() {
         Map<String, SessionFactory> mSessionFactory = new HashMap<>();
         try {
             String fileName = "db.json";
-            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
-            File file = new File(classLoader.getResource(fileName).getFile());
+//            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+//
+//            File file = new File(classLoader.getResource(fileName).getFile());
+//            String content = new String(Files.readAllBytes(file.toPath()));
             //Read File Content
-            String content = new String(Files.readAllBytes(file.toPath()));
+            URL fileResource = Resources.getResource(fileName);
+            String content = Resources.toString(fileResource, StandardCharsets.UTF_8);
             JSONObject dtObj = new JSONObject(content);
 
             for (String dbEnvVal : dtObj.keySet()) {
@@ -97,13 +108,13 @@ public class HibernateUtil {
                     final HashMap<String, String> secretMap = objectMapper.readValue(secretBinaryString, HashMap.class);
 
                     String url = String.format("jdbc:postgresql://%s:%s/%s", secretMap.get("host"), secretMap.get("port"), database_name);
-                    String dbUsr = secretMap.get("username");
-                    String dbPwd = secretMap.get("password");
+//                    String dbUsr = secretMap.get("username");
+//                    String dbPwd = secretMap.get("password");
                     Configuration cfg = new Configuration().configure("hibernate.cfg.xml");
                     StandardServiceRegistryBuilder standardServiceRegistryBuilder = cfg.getStandardServiceRegistryBuilder();
                     standardServiceRegistryBuilder.applySetting("hibernate.connection.url", url);
-                    standardServiceRegistryBuilder.applySetting("hibernate.connection.username", dbUsr);
-                    standardServiceRegistryBuilder.applySetting("hibernate.connection.password", dbPwd);
+                    standardServiceRegistryBuilder.applySetting("hibernate.connection.username", secretMap.get("username"));
+                    standardServiceRegistryBuilder.applySetting("hibernate.connection.password", secretMap.get("password"));
                     serviceRegistry = standardServiceRegistryBuilder.build();
                     Metadata metadata = new MetadataSources(serviceRegistry).getMetadataBuilder().build();
                     mSessionFactory.put(dbEnvVal, metadata.getSessionFactoryBuilder().build());
@@ -118,11 +129,23 @@ public class HibernateUtil {
             throw new ExceptionInInitializerError(ex);
         }
     }
-     
+
     public static SessionFactory getSessionMaster(String dbEnv) {
-        if (dbEnv == null || dbEnv.isEmpty()) {
-            dbEnv = HibernateUtil.defaultDB;
-        } else if (HibernateUtil.master.get(dbEnv) == null) {
+        Properties properties = new Properties();
+        String resourceName = "config.properties";
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        try (InputStream resourceStream = loader.getResourceAsStream(resourceName)) {
+            properties.load(resourceStream);
+        } catch (IOException ex) {
+            Logger.getLogger(HibernateUtil.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        if (Boolean.parseBoolean(properties.getProperty("use_state"))) {
+            if (dbEnv == null || dbEnv.isEmpty()) {
+                dbEnv = HibernateUtil.defaultDB;
+            } else if (HibernateUtil.master.get(dbEnv) == null) {
+                dbEnv = HibernateUtil.defaultDB;
+            }
+        } else {
             dbEnv = HibernateUtil.defaultDB;
         }
         return master.get(dbEnv);

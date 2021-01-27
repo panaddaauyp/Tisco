@@ -1,8 +1,8 @@
 {
     "default": {
         "database_name": "DigitalLending",
-        "secretname": "alpha/digitalshelf",
-        "region": "ap-southeast-1"
+        "secretname": "postgres",
+        "region": "P@ssw0rd"
     },
     "state2": {
         "database_name": "",
@@ -10,11 +10,6 @@
         "region": ""
     },
     "state3": {
-        "database_name": "",
-        "secretname": "",
-        "region": ""
-    },
-    "state4": {
         "database_name": "",
         "secretname": "",
         "region": ""

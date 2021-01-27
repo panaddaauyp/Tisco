@@ -3,25 +3,15 @@ package th.co.d1.digitallending.util;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.Base64;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import javax.security.cert.X509Certificate;
 import javax.servlet.http.HttpServletRequest;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.json.JSONObject;
 
 public class HttpUtil {
 
-    final static Logger logger = Logger.getLogger(HttpUtil.class);
-
+    final static Logger logger = Logger.getLogger(HttpUtil.class.getName());
+    /*
     static {
         TrustManager[] trustAllCerts = new TrustManager[]{
             new X509TrustManager() {
@@ -53,7 +43,7 @@ public class HttpUtil {
             sc.init(null, trustAllCerts, new java.security.SecureRandom());
             HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
         } catch (NoSuchAlgorithmException | KeyManagementException | NullPointerException e) {
-            logger.error("" + e);  e.printStackTrace();
+            logger.info("" + e);  //e.printStackTrace();
         }
 
         HostnameVerifier allHostsValid = new HostnameVerifier() {
@@ -65,7 +55,7 @@ public class HttpUtil {
 
         HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
     }
-
+*/
     /* getValue from request */
     public static JSONObject getPostParam(HttpServletRequest request) {
 //        System.out.println("Request -> "+request.toString());
@@ -82,13 +72,13 @@ public class HttpUtil {
             //            System.out.println(new java.util.Date() + " : " + jb.toString());
             returnVal = new JSONObject(jb.toString());
         } catch (IOException | NullPointerException ex) {
-            logger.error(ex.getMessage());
+            logger.info(ex.getMessage());
             return returnVal;
         } finally {
             try {
                 reader.close();
             } catch (IOException | NullPointerException ex) {
-                logger.error(ex.getMessage());
+                logger.info(ex.getMessage());
             }
         }
         return returnVal;
@@ -118,7 +108,7 @@ public class HttpUtil {
 
             }
         } catch (NullPointerException e) {
-            logger.error("" + e);  e.printStackTrace();
+            logger.info("" + e);  //e.printStackTrace();
         }
         return returnValue;
     }

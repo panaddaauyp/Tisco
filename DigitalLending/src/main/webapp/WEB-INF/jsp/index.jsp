@@ -5,10 +5,10 @@
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <title>DigitalLending</title>
+        <title>Welcome to Spring Web MVC project</title>
     </head>
 
     <body>
-        <p>DigitalLending Service Running...</p>
+        <p>DigitalLending Service Run.</p>
     </body>
 </html>

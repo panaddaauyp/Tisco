@@ -11,7 +11,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Root;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
@@ -20,19 +20,18 @@ import th.co.d1.digitallending.entity.ShelfComp;
 import th.co.d1.digitallending.entity.ShelfProduct;
 import th.co.d1.digitallending.entity.ShelfProductDtl;
 import th.co.d1.digitallending.entity.ShelfProductVcs;
-import th.co.d1.digitallending.util.HibernateUtil;
+import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
 import th.co.d1.digitallending.util.StatusUtils;
 
 public class ShelfProductDtlDao {
 
-    Logger logger = Logger.getLogger(ShelfProductDtlDao.class);
-    private Session session;
+    Logger logger = Logger.getLogger(ShelfProductDtlDao.class.getName());
 
     public List<ShelfProductDtl> getListShelfProductDtl(String dbEnv) {
         List<ShelfProductDtl> shelfProductDtlList = new ArrayList<>();
-        try {
-            session = HibernateUtil.getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<ShelfProductDtl> cr = cb.createQuery(ShelfProductDtl.class);
             Root<ShelfProductDtl> root = cr.from(ShelfProductDtl.class);
@@ -40,85 +39,67 @@ public class ShelfProductDtlDao {
             Query<ShelfProductDtl> prodDtlCmd = session.createQuery(cr);
             shelfProductDtlList = prodDtlCmd.getResultList();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfProductDtlList;
     }
 
     public ShelfProductDtl getShelfProductDtlByUUID(String dbEnv, String uuid) {
         ShelfProductDtl shelfProductDtl = new ShelfProductDtl();
-        try {
-            session = HibernateUtil.getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             shelfProductDtl = (ShelfProductDtl) session.get(ShelfProductDtl.class, uuid);
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfProductDtl;
     }
 
     public ShelfProductDtl createShelfProductDtl(String dbEnv, ShelfProductDtl shelfProductDtl) {
         Transaction trans = null;
-        try {
-            session = HibernateUtil.getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             session.save(shelfProductDtl);
             trans.commit();
-            session.close();
             return shelfProductDtl;
         } catch (HibernateException | NullPointerException e) {
             trans.rollback();
-            logger.error("" + e);
-            e.printStackTrace();
-            return null;
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            logger.info(e.getMessage());
+            throw e;
         }
     }
 
     public ShelfProductDtl updateShelfProductDtl(String dbEnv, ShelfProductDtl shelfProductDtl) {
         Transaction trans = null;
-        try {
-            session = HibernateUtil.getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             session.update(shelfProductDtl);
             trans.commit();
-            session.close();
             return shelfProductDtl;
         } catch (HibernateException | NullPointerException e) {
             trans.rollback();
-            logger.error("" + e);
-            e.printStackTrace();
-            return null;
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            logger.info(e.getMessage());
+            throw e;
         }
     }
 
     public List<ShelfProductDtl> getShelfProductDtlByCompUuidAndProductUuid(String dbEnv, String compUuid, String productUuid) {
         List<ShelfProductDtl> shelfProductDtlList = new ArrayList<>();
         StatusUtils.Status inprogressStatus = StatusUtils.getInprogress(dbEnv);
-        try {
-            session = HibernateUtil.getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<ShelfProductVcs> cr = cb.createQuery(ShelfProductVcs.class);
             Root<ShelfProductVcs> root = cr.from(ShelfProductVcs.class);
@@ -145,16 +126,13 @@ public class ShelfProductDtlDao {
             Query<ShelfProductDtl> prodDtlCmd = session.createQuery(crDtl);
             shelfProductDtlList = prodDtlCmd.getResultList();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfProductDtlList;
     }
-
 }

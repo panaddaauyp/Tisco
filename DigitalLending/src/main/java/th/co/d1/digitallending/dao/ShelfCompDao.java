@@ -7,14 +7,13 @@ package th.co.d1.digitallending.dao;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
-
 import th.co.d1.digitallending.entity.ShelfComp;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
 
@@ -24,71 +23,75 @@ import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
  */
 public class ShelfCompDao {
 
-    private Session session;
-
-    Logger logger = Logger.getLogger(ShelfCompDao.class);
+    Logger logger = Logger.getLogger(ShelfCompDao.class.getName());
 
     public List<ShelfComp> getListShelfComp(String dbEnv) {
         List<ShelfComp> shelfComp = new ArrayList<>();
-        try {
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             int status = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfComp.class);
             criteria.add(Restrictions.eq("status", status));
             criteria.addOrder(Order.asc("seqNo"));
             shelfComp = criteria.list();
             trans.commit();
-            session.close();
         } catch (NumberFormatException | HibernateException e) {
-            logger.error("" + e);  e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());  //e.printStackTrace();
+            throw e;
         }
         return shelfComp;
     }
 
     public ShelfComp getShelfCompByUUID(String dbEnv, String uuid) {
         ShelfComp shelfComp = new ShelfComp();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             shelfComp = (ShelfComp) session.get(ShelfComp.class, uuid);
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);  e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());  //e.printStackTrace();
+            throw e;
         }
         return shelfComp;
     }
 
     public ShelfComp saveShelfComp(Session session, ShelfComp shelfComp) {
+        Transaction trans = null;
         try {
-            Transaction trans = session.beginTransaction();
+            trans = session.beginTransaction();
             session.save(shelfComp);
             trans.commit();
             return shelfComp;
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);  e.printStackTrace();
-            return null;
+            if (trans != null) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());  //e.printStackTrace();
+            throw e;
         }
     }
 
     public ShelfComp updateShelfComp(Session session, ShelfComp shelfComp) {
+        Transaction trans = null;
         try {
-            Transaction trans = session.beginTransaction();
+            trans = session.beginTransaction();
             session.update(shelfComp);
             trans.commit();
             return shelfComp;
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);  e.printStackTrace();
-            return null;
+            if (trans != null) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());  //e.printStackTrace();
+            throw e;
         }
     }
 

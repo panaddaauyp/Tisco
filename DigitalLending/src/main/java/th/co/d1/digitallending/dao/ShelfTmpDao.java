@@ -5,15 +5,13 @@
  */
 package th.co.d1.digitallending.dao;
 
-import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -25,7 +23,6 @@ import org.json.JSONObject;
 import th.co.d1.digitallending.entity.ShelfTmp;
 
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
-import th.co.d1.digitallending.util.ValidUtils;
 
 /**
  *
@@ -33,27 +30,24 @@ import th.co.d1.digitallending.util.ValidUtils;
  */
 public class ShelfTmpDao {
 
-    private Session session;
-    Logger logger = Logger.getLogger(ShelfTmpDao.class);
+    Logger logger = Logger.getLogger(ShelfTmpDao.class.getName());
 
     public List<ShelfTmp> getListByStatus(String dbEnv, int status) {
         List<ShelfTmp> shelfTmp = new ArrayList<>();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmp.class);
             criteria.add(Restrictions.eq("status", status));
             criteria.addOrder(Order.asc("tmpName"));
             shelfTmp = criteria.list();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfTmp;
     }
@@ -66,9 +60,11 @@ public class ShelfTmpDao {
             trans.commit();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            trans.rollback();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            if (trans != null) {
+                trans.rollback();
+            }
             return new JSONObject().put("status", false).put("description", "" + e);
         }
     }
@@ -81,34 +77,32 @@ public class ShelfTmpDao {
             trans.commit();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            trans.rollback();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            if (trans != null) {
+                trans.rollback();
+            }
             return new JSONObject().put("status", false).put("description", "" + e);
         }
     }
 
     public JSONObject updateStatus(String dbEnv, String tmpUuid, int status) {
         Transaction trans = null;
-        Connection con = null;
         PreparedStatement ps = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
-            con = session.doReturningWork((Connection conn) -> conn);
             StringBuilder prodCmd = new StringBuilder();
             prodCmd.append("update t_shelf_tmp set status = ? Where uuid = ?");
-            ps = con.prepareStatement(prodCmd.toString());
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
             ps.setInt(1, status);
             ps.setString(2, tmpUuid);
             ps.executeUpdate();
             trans.commit();
             ps.close();
-            session.close();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException | NullPointerException | SQLException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
@@ -118,14 +112,8 @@ public class ShelfTmpDao {
                 if (ps != null) {
                     ps.close();
                 }
-                if (null != session) {
-                    session.close();
-                }
-//                if (!con.isClosed()) {
-//                    con.close();
-//                }
             } catch (SQLException ex) {
-                logger.error("" + ex);
+                logger.info(ex.getMessage());
             }
         }
     }
@@ -133,37 +121,29 @@ public class ShelfTmpDao {
     public ShelfTmp getShelfTmp(String dbEnv, String uuid) {
         ShelfTmp theme = new ShelfTmp();
         Transaction trans = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             theme = (ShelfTmp) session.get(ShelfTmp.class, uuid);
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            throw e;
         }
         return theme;
     }
 
-    public JSONArray getTemplateListAndProductUsage(String dbEnv) {
-        Connection con = null;
+    public JSONArray getTemplateListAndProductUsage(String dbEnv) throws SQLException {
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, prodListRs = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            con = session.doReturningWork((Connection conn) -> conn);
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             StringBuilder reconcileCmd = new StringBuilder();
-            reconcileCmd.append("SELECT * FROM T_SHELF_TMP");
-            ps = con.prepareStatement(reconcileCmd.toString());
+            reconcileCmd.append("SELECT uuid, tmp_name, value, current_vcs_uuid, previous_vcs_uuid, attr1, attr2, attr3, attr4, attr5, attr6, attr7, attr8, attr9, attr10, description, status, create_at, create_by, update_at, update_by, company_code, bussiness_dept, business_line FROM T_SHELF_TMP");
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(reconcileCmd.toString());
             rs = ps.executeQuery();
             while (rs.next()) {
                 JSONObject tmpObj = new JSONObject();
@@ -200,7 +180,7 @@ public class ShelfTmpDao {
                 reconcileCmd.append("AND DTL.TRN_UUID = VCS.UUID ");
                 reconcileCmd.append("AND DTL.LK_CODE = 'prodType' ");
                 reconcileCmd.append("AND VCS.TEM_UUID = ?");
-                psOperLog = con.prepareStatement(reconcileCmd.toString());
+                psOperLog = session.doReturningWork((Connection conn) -> conn).prepareStatement(reconcileCmd.toString());
                 psOperLog.setString(1, tmpObj.getString("uuid"));
                 prodListRs = psOperLog.executeQuery();
                 JSONArray prodArr = new JSONArray();
@@ -214,17 +194,25 @@ public class ShelfTmpDao {
                     prodObj.put("productType", prodListRs.getString("PRODTYPE"));
                     prodArr.put(prodObj);
                 }
+                if (prodListRs != null) {
+                    prodListRs.close();
+                }
+                if (psOperLog != null) {
+                    psOperLog.close();
+                }
                 tmpObj.put("product", prodArr);
                 ret.put(tmpObj);
             }
-            con.commit();
-        } catch (SQLException | HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
         } finally {
             try {
-                if (prodListRs != null) {
+            	if (prodListRs != null) {
                     prodListRs.close();
+                }
+                if (psOperLog != null) {
+                    psOperLog.close();
                 }
                 if (rs != null) {
                     rs.close();
@@ -233,12 +221,51 @@ public class ShelfTmpDao {
                     ps.close();
                 }
             } catch (NullPointerException | SQLException ex) {
-                logger.error("" + ex);
-            }
-            if (null != session) {
-                session.close();
+                logger.info(ex.getMessage());
             }
         }
         return ret;
+    }
+
+    public List<ShelfTmp> listAll(String dbEnv) {
+        List<ShelfTmp> shelfTmp = new ArrayList<>();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            Criteria criteria = session.createCriteria(ShelfTmp.class);
+            criteria.addOrder(Order.asc("tmpName"));
+            shelfTmp = criteria.list();
+            trans.commit();
+        } catch (HibernateException | NullPointerException e) {
+            if (trans != null) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            throw e;
+        }
+        return shelfTmp;
+    }
+
+    public List<ShelfTmp> getShelfTemplateByTemplateVcsStatus(String dbEnv, Integer status) {
+        List<ShelfTmp> list = new ArrayList<>();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            Criteria criteria = session.createCriteria(ShelfTmp.class, "tmp");
+            criteria.createAlias("tmp.shelfTmpVcsList", "vcs");
+            if (null != status) {
+                criteria.add(Restrictions.eq("vcs.status", status));
+            }
+//            criteria.add(Restrictions.not(Restrictions.in("status", status)));
+            criteria.addOrder(Order.asc("tmp.tmpName"));
+            list = criteria.list();
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            if (null != trans) {
+                trans.rollback();
+            }
+            throw e;
+        }
+        return list;
     }
 }

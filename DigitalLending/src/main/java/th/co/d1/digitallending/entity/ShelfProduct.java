@@ -9,7 +9,6 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 import javax.persistence.Basic;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -57,9 +56,9 @@ public class ShelfProduct implements Serializable {
     @Size(max = 2147483647)
     @Column(name = "company")
     private String company;
-//    @Size(max = 2147483647)
-//    @Column(name = "prod_type")
-//    private String prodType;
+    @Size(max = 2147483647)
+    @Column(name = "prod_type")
+    private String prodType;
 //    @Size(max = 2147483647)
 //    @Column(name = "prod_url")
 //    private String prodUrl;
@@ -208,14 +207,14 @@ public class ShelfProduct implements Serializable {
         this.company = company;
     }
 
-//    public String getProdType() {
-//        return prodType;
-//    }
-//
-//    public void setProdType(String prodType) {
-//        this.prodType = prodType;
-//    }
-//
+    public String getProdType() {
+        return prodType;
+    }
+
+    public void setProdType(String prodType) {
+        this.prodType = prodType;
+    }
+
 //    public String getProdUrl() {
 //        return prodUrl;
 //    }

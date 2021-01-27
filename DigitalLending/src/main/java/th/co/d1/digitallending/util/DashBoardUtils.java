@@ -5,18 +5,19 @@
  */
 package th.co.d1.digitallending.util;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.HibernateException;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import th.co.d1.digitallending.dao.DashboardDao;
 import th.co.d1.digitallending.dao.ShelfLookupDao;
@@ -33,7 +34,7 @@ import th.co.d1.digitallending.entity.ShelfLookup;
  */
 public class DashBoardUtils {
 
-    final static Logger logger = Logger.getLogger(DashBoardUtils.class);
+    final static Logger logger = Logger.getLogger(DashBoardUtils.class.getName());
 
     private static JSONObject getDashboardProduct(Boolean isDtl, HashMap hmap, String productCode) {
         JSONObject resp = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
@@ -132,8 +133,8 @@ public class DashBoardUtils {
                 data.put("list", listDtl);
             }
             resp.put("data", data);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            //e.printStackTrace();
             resp.put("status", 500)
                     .put("description", "" + e);
         }
@@ -234,10 +235,10 @@ public class DashBoardUtils {
                 data.put("list", listDtl);
             }
             resp.put("data", data);
-        } catch (Exception e) {
+        } catch (JSONException | HibernateException | NullPointerException e) {
             resp.put("status", 500)
                     .put("description", "" + e);
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         return resp;
     }
@@ -311,7 +312,7 @@ public class DashBoardUtils {
                 tmp.put("time", (trnno > 0) ? (time / (trnno)) : time);
                 detail.add(tmp);
             }
-            Utils.sortJSONObjectByString(detail,"statuscode",true);
+            Utils.sortJSONObjectByString(detail, "statuscode", true);
             JSONObject data = new JSONObject().put("type", "status")
                     .put("detail", detail);
             if (isDtl) {
@@ -359,10 +360,10 @@ public class DashBoardUtils {
                 data.put("list", listDtl);
             }
             resp.put("data", data);
-        } catch (Exception e) {
+        } catch (JSONException | NullPointerException | HibernateException e) {
             resp.put("status", 500)
                     .put("description", "" + e);
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         return resp;
     }
@@ -456,10 +457,10 @@ public class DashBoardUtils {
                 data.put("list", listDtl);
             }
             resp.put("data", data);
-        } catch (Exception e) {
+        } catch (JSONException |HibernateException | NullPointerException e) {
             resp.put("status", 500)
                     .put("description", "" + e);
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         return resp;
     }
@@ -554,10 +555,10 @@ public class DashBoardUtils {
                 data.put("list", listDtl);
             }
             resp.put("data", data);
-        } catch (Exception e) {
+        } catch (JSONException | NullPointerException | HibernateException e) {
             resp.put("status", 500)
                     .put("description", "" + e);
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         return resp;
     }
@@ -591,9 +592,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -613,9 +614,9 @@ public class DashBoardUtils {
                 result.put("status", 500)
                         .put("description", resp.has("description") ? resp.getString("description") : "");
             }
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -632,9 +633,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -651,9 +652,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -670,9 +671,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | UnsupportedEncodingException | SQLException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -689,9 +690,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -712,9 +713,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }
@@ -744,9 +745,9 @@ public class DashBoardUtils {
                 datas.put(resp.getJSONObject("data"));
             }
             result.put("datas", datas);
-        } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException | SQLException | UnsupportedEncodingException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             result.put("status", 500)
                     .put("description", "" + e);
         }

@@ -16,7 +16,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Root;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -28,13 +28,12 @@ import org.hibernate.query.Query;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import th.co.d1.digitallending.entity.Memlookup;
-import th.co.d1.digitallending.entity.ShelfProductVcs;
 import th.co.d1.digitallending.entity.ShelfTmp;
 import th.co.d1.digitallending.entity.ShelfTmpDetail;
 import th.co.d1.digitallending.entity.ShelfTmpVcs;
 import th.co.d1.digitallending.util.DateUtils;
-
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
+import th.co.d1.digitallending.util.StatusUtils;
 import th.co.d1.digitallending.util.ValidUtils;
 
 /**
@@ -43,14 +42,13 @@ import th.co.d1.digitallending.util.ValidUtils;
  */
 public class ShelfTmpVcsDao {
 
-    private Session session;
-    Logger logger = Logger.getLogger(ShelfTmpVcsDao.class);
+    Logger logger = Logger.getLogger(ShelfTmpVcsDao.class.getName());
 
     public List<ShelfTmpVcs> getList(String dbEnv) {
         List<ShelfTmpVcs> shelfTmpVcs = new ArrayList<>();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
             criteria.createAlias("tmpUuid", "tmp");
             criteria.addOrder(Order.asc("tmp.uuid"));
@@ -59,35 +57,54 @@ public class ShelfTmpVcsDao {
 //            criteria.addOrder(Order.asc("seqNo"));
             shelfTmpVcs = criteria.list();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (null != trans) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfTmpVcs;
     }
 
     public ShelfTmpVcs getListByUuid(String dbEnv, String vcsUuid) {
         ShelfTmpVcs shelfTmpVcs = new ShelfTmpVcs();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
             criteria.add(Restrictions.eq("uuid", vcsUuid));
             shelfTmpVcs = (ShelfTmpVcs) criteria.uniqueResult();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (null != trans) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
+        }
+        return shelfTmpVcs;
+    }
+
+    public List<ShelfTmpVcs> getListByTmpUuid(String dbEnv, String tmpUuid) {
+        List<ShelfTmpVcs> shelfTmpVcs = new ArrayList<>();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
+            criteria.createAlias("tmpUuid", "tmp");
+            criteria.add(Restrictions.eq("tmp.uuid", tmpUuid));
+//            criteria.add(Restrictions.not(Restrictions.eq("version", 0)));
+            criteria.addOrder(Order.asc("version"));
+//            criteria.addOrder(Order.asc("seqNo"));
+            shelfTmpVcs = criteria.list();
+            trans.commit();
+        } catch (HibernateException | NullPointerException e) {
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfTmpVcs;
     }
@@ -100,9 +117,11 @@ public class ShelfTmpVcsDao {
             trans.commit();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException e) {
-            trans.rollback();
-            logger.error("" + e);
-            e.printStackTrace();
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return new JSONObject().put("status", false).put("description", "" + e);
         }
     }
@@ -115,25 +134,39 @@ public class ShelfTmpVcsDao {
             trans.commit();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException e) {
-            trans.rollback();
-            logger.error("" + e);
-            e.printStackTrace();
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
             return new JSONObject().put("status", false).put("description", "" + e);
         }
     }
 
-    public int maxVersion(String dbEnv, String tmpUuid) {
+    public JSONObject updateVcs(String dbEnv, ShelfTmpVcs shelfTmpVcs) {
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            session.update(shelfTmpVcs);
+            trans.commit();
+            return new JSONObject().put("status", true).put("description", "");
+        } catch (HibernateException e) {
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            return new JSONObject().put("status", false).put("description", "" + e);
+        }
+    }
+    
+    public int maxVersion(String dbEnv, String tmpUuid) throws SQLException {
         int maxVersion = 0;
-        Connection con = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            con = session.doReturningWork((Connection conn) -> conn);
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             StringBuilder prodCmd = new StringBuilder();
             prodCmd.append("select max(version) version from ShelfTmpVcs where tmpUuid.uuid = ? ");
 //            System.out.println("query : " + SQL_QUERY);
-            ps = con.prepareStatement(prodCmd.toString());
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
             ps.setString(1, tmpUuid);
             rs = ps.executeQuery();
             List list = new ArrayList<>();
@@ -143,183 +176,198 @@ public class ShelfTmpVcsDao {
             if (list.get(0) == null) {
                 maxVersion = 0;
             }
-            rs.close();
-            ps.close();
-            session.close();
-        } catch (HibernateException | NullPointerException | SQLException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
         } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (ps != null) {
-                    ps.close();
-                }
-                if (null != session) {
-                    session.close();
-                }
-//                if (!con.isClosed()) {
-//                    con.close();
-//                }
-            } catch (SQLException ex) {
-                logger.error("" + ex);
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
             }
         }
         return maxVersion;
     }
 
-    public JSONObject updateStatus(String dbEnv, String vcsUuid, int status, String state, String remark, boolean upVersion) {
+    public JSONObject updateStatus(String dbEnv, String vcsUuid, int status, String state, String remark, boolean upVersion) throws SQLException {
         Transaction trans = null;
-        Connection con = null;
         PreparedStatement ps = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
-            con = session.doReturningWork((Connection conn) -> conn);
             StringBuilder prodCmd = new StringBuilder();
-            if (remark.isEmpty()) {
+            if (remark == null || remark.isEmpty()) {
                 prodCmd.append("update t_shelf_tmp_vcs set status = ?, state = ? Where uuid = ?");
-                ps = con.prepareStatement(prodCmd.toString());
+                ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
                 ps.setInt(1, status);
                 ps.setString(2, state);
                 ps.setString(3, vcsUuid);
             } else {
                 prodCmd.append("update t_shelf_tmp_vcs set status = ?, state = ?, attr2 = ? Where uuid = ?");
-                ps = con.prepareStatement(prodCmd.toString());
+                ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
                 ps.setInt(1, status);
                 ps.setString(2, state);
                 ps.setString(3, remark);
                 ps.setString(4, vcsUuid);
             }
             ps.executeUpdate();
+            if (ps != null) {
+                ps.close();
+            }
             if (upVersion) {
                 prodCmd.setLength(0);
-                prodCmd.append("UPDATE t_shelf_tmp_vcs SET version = (SELECT MAX(version)+1 FROM t_shelf_tmp_vcs where tmp_uuid = (select tmp_uuid from t_shelf_tmp_vcs where uuid = ?)) where tmp_uuid = (select tmp_uuid from t_shelf_tmp_vcs where uuid = ?)");
-                ps = con.prepareStatement(prodCmd.toString());
+//                prodCmd.append("UPDATE t_shelf_tmp_vcs SET version = (SELECT MAX(version)+1 FROM t_shelf_tmp_vcs where tmp_uuid = (select tmp_uuid from t_shelf_tmp_vcs where uuid = ?)) where tmp_uuid = (select tmp_uuid from t_shelf_tmp_vcs where uuid = ?)");
+                prodCmd.append("UPDATE t_shelf_tmp_vcs SET version = (SELECT MAX(version)+1 FROM t_shelf_tmp_vcs where tmp_uuid = (select tmp_uuid from t_shelf_tmp_vcs where uuid = ?)) where uuid = ? ");
+                ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
                 ps.setString(1, vcsUuid);
                 ps.setString(2, vcsUuid);
                 ps.executeUpdate();
+                if (!ps.isClosed()) {
+                    ps.close();
+                }
                 prodCmd.setLength(0);
                 prodCmd.append("UPDATE t_shelf_tmp SET current_vcs_uuid = ? where uuid = (select tmp_uuid from t_shelf_tmp_vcs where uuid = ?)");
-                ps = con.prepareStatement(prodCmd.toString());
+                ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
                 ps.setString(1, vcsUuid);
                 ps.setString(2, vcsUuid);
                 ps.executeUpdate();
+                if (!ps.isClosed()) {
+                    ps.close();
+                }
             }
             trans.commit();
-
-            session.close();
             return new JSONObject().put("status", true).put("description", "");
-        } catch (NullPointerException | HibernateException | SQLException e) {
+        } catch (NullPointerException | HibernateException e) {
+            if (!ps.isClosed()) {
+                ps.close();
+            }
             if (null != trans) {
                 trans.rollback();
             }
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return new JSONObject().put("status", false).put("description", "" + e);
-        } finally {
-            if (null != session) {
-                session.close();
-            }
-//                if (!con.isClosed()) {
-//                    con.close();
-//                }
         }
     }
 
     public List<ShelfTmpVcs> getListByStatus(String dbEnv, int status) {
         List<ShelfTmpVcs> shelfTmp = new ArrayList<>();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
             criteria.add(Restrictions.eq("status", status));
             shelfTmp = criteria.list();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (null != trans) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
+        }
+        return shelfTmp;
+    }
+
+    public List<ShelfTmpVcs> getActiveInActiveList(String dbEnv) {
+        List<ShelfTmpVcs> shelfTmp = new ArrayList<>();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
+            shelfTmp = criteria.list();
+            trans.commit();
+        } catch (HibernateException | NullPointerException e) {
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfTmp;
     }
 
     public List<ShelfTmpVcs> getShelfTmpVcsByTmpUUID(String dbEnv, String tmpUuid, String tmpVcsUuid) {
         List<ShelfTmpVcs> listVcs = new ArrayList<>();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<ShelfTmpVcs> cr = cb.createQuery(ShelfTmpVcs.class);
             Root<ShelfTmpVcs> root = cr.from(ShelfTmpVcs.class);
             Join<ShelfTmpVcs, ShelfTmp> joinObject = root.join("tmpUuid");
             cr.select(root).where(cb.and(cb.equal(joinObject.get("uuid"), tmpUuid), cb.notEqual(root.get("uuid"), tmpVcsUuid)));
             Query<ShelfTmpVcs> prodVcsCmd = session.createQuery(cr);
-            listVcs = prodVcsCmd.list();
+            listVcs = prodVcsCmd.getResultList();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (null != trans) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return listVcs;
     }
 
-    public List<ShelfTmpVcs> getListByTmpUuidAndStatus(String dbEnv, String tmpUuid, int status) {
+    public List<ShelfTmpVcs> getListByTmpUuidAndStatus(String dbEnv, String tmpUuid, int status, String tmpVcsUuid) {
         List<ShelfTmpVcs> listVcs = new ArrayList<>();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<ShelfTmpVcs> cr = cb.createQuery(ShelfTmpVcs.class);
             Root<ShelfTmpVcs> root = cr.from(ShelfTmpVcs.class);
             Join<ShelfTmpVcs, ShelfTmp> joinObject = root.join("tmpUuid");
-            cr.select(root).where(cb.and(cb.equal(joinObject.get("uuid"), tmpUuid), cb.notEqual(root.get("status"), status)));
+            cr.select(root).where(cb.and(cb.and(cb.equal(joinObject.get("uuid"), tmpUuid), cb.notEqual(root.get("uuid"), tmpVcsUuid)), cb.equal(root.get("status"), status)));
             Query<ShelfTmpVcs> prodVcsCmd = session.createQuery(cr);
-            listVcs = prodVcsCmd.list();
+            listVcs = prodVcsCmd.getResultList();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (null != trans) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return listVcs;
     }
 
-    public JSONArray searchShelfTemplate(String dbEnv, String templateName, Integer status, Date createFrom, Date createTo, Date updateFrom, Date updateTo, Date effectiveStartDate, Date effectiveEndDate) {
+    public JSONArray searchShelfTemplate(String dbEnv, String templateName, JSONArray status, Date createFrom, Date createTo, Date updateFrom, Date updateTo, Date effectiveStartDate, Date effectiveEndDate) throws SQLException {
         List<ShelfTmpVcs> templates = new ArrayList<>();
-        List<ShelfProductVcs> shelfProductVcsList = new ArrayList<>();
         JSONArray jsonArr = new JSONArray();
-        Transaction trans;
-        int statusActive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
-        int statusInactive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inactive").getLookupcode());
-        List statusActiveInactive = new ArrayList();
-        statusActiveInactive.add(statusActive);
-        statusActiveInactive.add(statusInactive);
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        Transaction trans = null;
+        Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+        Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
+        Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+        Integer statusPause = StatusUtils.getPause(dbEnv).getStatusCode();
+        Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
+        Integer statusWaitToDelete = StatusUtils.getWaittoDelete(dbEnv).getStatusCode();
+        Integer statusTerminate = StatusUtils.getTerminate(dbEnv).getStatusCode();
+        Integer statusDelete = StatusUtils.getDelete(dbEnv).getStatusCode();
+        Integer statusExpire = StatusUtils.getExpired(dbEnv).getStatusCode();
+        List statusProductIn = new ArrayList();
+        statusProductIn.add(statusActive);
+        statusProductIn.add(statusInactive);
+        statusProductIn.add(statusInprogress);
+        statusProductIn.add(statusPause);
+        statusProductIn.add(statusWaitToApprove);
+        statusProductIn.add(statusWaitToDelete);
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
             criteria.createAlias("tmpUuid", "tmp");
             if (null != templateName && !"".equals(templateName)) {
                 criteria.add(Restrictions.like("tmp.tmpName", templateName, MatchMode.ANYWHERE));
             }
-            if (null != status) {
-                criteria.add(Restrictions.eq("status", status));
+            if (status.length() > 0) {
+                List statusList = new ArrayList();
+                for (int i = 0; i < status.length(); i++) {
+                    statusList.add(status.getInt(i));
+                }
+                criteria.add(Restrictions.in("status", statusList));
             }
             if (null != createFrom && null != createTo) {
                 criteria.add(Restrictions.between("createAt", DateUtils.utilDateToSqlDate(createFrom), DateUtils.utilDateToSqlDate(DateUtils.addDate(createTo, 0, 0, 0, 23, 59, 59))));
@@ -346,6 +394,7 @@ public class ShelfTmpVcsDao {
             for (ShelfTmpVcs shelfTmpVcs : templates) {
                 Memlookup memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(shelfTmpVcs.getStatus()));
                 JSONObject header = new JSONObject()
+                        .put("id", shelfTmpVcs.getTmpUuid().getUuid())
                         .put("tmpUuid", shelfTmpVcs.getTmpUuid().getUuid())
                         .put("vcsUuid", shelfTmpVcs.getUuid())
                         .put("name", shelfTmpVcs.getTmpUuid().getTmpName())
@@ -354,8 +403,8 @@ public class ShelfTmpVcsDao {
                         .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
                         .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "")
                         .put("createDate", shelfTmpVcs.getCreateAt())
-                        .put("createDate", shelfTmpVcs.getCreateBy())
-                        .put("version", shelfTmpVcs.getVersion())
+                        .put("createBy", shelfTmpVcs.getCreateBy())
+                        .put("version", (shelfTmpVcs.getVersion() == 0 ? "" : String.valueOf(shelfTmpVcs.getVersion())))
                         .put("updateDate", (shelfTmpVcs.getUpdateAt() == null ? "" : shelfTmpVcs.getUpdateAt()))
                         .put("updateBy", (shelfTmpVcs.getUpdateBy() == null ? "" : shelfTmpVcs.getUpdateBy()));
                 JSONArray infoData = new JSONArray();
@@ -391,35 +440,72 @@ public class ShelfTmpVcsDao {
                     }
                     infoData.put(eachDetail);
                 }
-                JSONObject tmpObj = new JSONObject()
-                        .put("header", header)
-                        .put("info", infoData);
-                criteria = session.createCriteria(ShelfProductVcs.class);
-                criteria.add(Restrictions.eq("temUuid", shelfTmpVcs.getTmpUuid().getUuid()));
-                criteria.add(Restrictions.isNull("compUuid"));
-                criteria.add(Restrictions.in("status", statusActiveInactive));
-                shelfProductVcsList = criteria.list();
+//                JSONObject tmpObj = new JSONObject()
+//                        .put("header", header)
+//                        .put("info", infoData);
+                StringBuilder searchProdCmd = new StringBuilder();
+                searchProdCmd.append("SELECT PROD_CODE, PROD_NAME, STATUS FROM T_SHELF_PRODUCT WHERE UUID IN (SELECT DISTINCT PROD_UUID FROM T_SHELF_PRODUCT_VCS WHERE COMP_UUID ISNULL ");
+                searchProdCmd.append(" AND STATUS IN (? ");
+                List params = new ArrayList<>();
+                for (int i = 1; i < statusProductIn.size(); i++) {
+                    searchProdCmd.append(", ? ");
+                    params.add(statusProductIn.get(i - 1));
+                }
+                params.add(statusProductIn.get(statusProductIn.size() - 1));
+                searchProdCmd.append(") ");
+                searchProdCmd.append(" AND TEM_UUID = ?)");
+                ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(searchProdCmd.toString());
+                if (params.size() > 0) {
+                    for (int i = 0; i < params.size(); i++) {
+                        if (params.get(i) instanceof String) {
+                            ps.setString(i + 1, (String) params.get(i));
+                        } else {
+                            ps.setInt(i + 1, (Integer) params.get(i));
+                        }
+                    }
+                }
+                ps.setString(statusProductIn.size() + 1, shelfTmpVcs.getTmpUuid().getUuid());
+                rs = ps.executeQuery();
                 JSONArray prodArr = new JSONArray();
-                for (ShelfProductVcs prodVcs : shelfProductVcsList) {
+                while (rs.next()) {
+                    if (rs.getInt("STATUS") == statusTerminate || rs.getInt("STATUS") == statusDelete || rs.getInt("STATUS") == statusExpire) {
+                        prodArr = new JSONArray();
+                        break;
+                    }
                     JSONObject prodObj = new JSONObject();
-                    memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(prodVcs.getStatus()));
-                    prodObj.put("code", prodVcs.getProdUuid().getProdCode())
-                            .put("name", prodVcs.getProdUuid().getProdName())
-                            .put("verProd", prodVcs.getVerProd())
+                    memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(ValidUtils.null2NoData(rs.getInt("STATUS"))));
+                    prodObj.put("code", ValidUtils.null2NoData(rs.getString("PROD_CODE")))
+                            .put("name", ValidUtils.null2NoData(rs.getString("PROD_NAME")))
+                            //                            .put("verProd", prodVcs.getVerProd())
                             .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
                             .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
                             .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "");
                     prodArr.put(prodObj);
                 }
-                tmpObj.put("prodUsage", prodArr);
-                jsonArr.put(tmpObj);
+                header.put("info", infoData);
+                header.put("prodUsage", prodArr);
+                jsonArr.put(header);
             }
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            try {
+                if (rs != null && !rs.isClosed()) {
+                    rs.close();
+                }
+                if (ps != null && !ps.isClosed()) {
+                    ps.close();
+                }
+            } catch (SQLException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+            }
+            logger.info(e.getMessage());
+            throw e;
         } finally {
-            if (null != session) {
-                session.close();
+            if (rs != null && !rs.isClosed()) {
+                rs.close();
+            }
+            if (ps != null && !ps.isClosed()) {
+                ps.close();
             }
         }
         return jsonArr;
@@ -428,33 +514,76 @@ public class ShelfTmpVcsDao {
     public List<ShelfTmpVcs> getShelfTemplateByNameStatusActiveAndInActive(String dbEnv, String templateName) {
         List<ShelfTmpVcs> list = new ArrayList<>();
         Transaction trans = null;
-        try {
-            int statusActive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
-            int statusInactive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inactive").getLookupcode());
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            int statusCancel = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "cancel").getLookupcode());
+            int statusDelete = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "delete").getLookupcode());
+            int statusTerminate = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "terminate").getLookupcode());
             List status = new ArrayList();
-            status.add(statusActive);
-            status.add(statusInactive);
-            session = getSessionMaster(dbEnv).openSession();
+            status.add(statusCancel);
+            status.add(statusDelete);
+            status.add(statusTerminate);
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
             criteria.createAlias("tmpUuid", "tmp");
             if (null != templateName && !"".equals(templateName)) {
                 criteria.add(Restrictions.eq("tmp.tmpName", templateName));
             }
-            criteria.add(Restrictions.in("status", status));
-            criteria.addOrder(Order.asc("themeName"));
+            criteria.add(Restrictions.not(Restrictions.in("status", status)));
+            criteria.addOrder(Order.asc("tmp.tmpName"));
             list = criteria.list();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
             if (null != trans) {
                 trans.rollback();
             }
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            throw e;
         }
         return list;
+    }
+
+    public List<ShelfTmpVcs> getListByStatus(String dbEnv, List status) {
+        List<ShelfTmpVcs> shelfTmp = new ArrayList<>();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
+            criteria.add(Restrictions.in("status", status));
+            shelfTmp = criteria.list();
+            trans.commit();
+        } catch (HibernateException | NullPointerException e) {
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            throw e;
+        }
+        return shelfTmp;
+    }
+
+    public List<ShelfTmpVcs> getListByTmpUuidAndTmpVersion(String dbEnv, String tmpUuid, int tmpVersion, boolean checkVerNotEq) {
+        List<ShelfTmpVcs> listVcs = new ArrayList<>();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<ShelfTmpVcs> cr = cb.createQuery(ShelfTmpVcs.class);
+            Root<ShelfTmpVcs> root = cr.from(ShelfTmpVcs.class);
+            Join<ShelfTmpVcs, ShelfTmp> joinObject = root.join("tmpUuid");
+            if (checkVerNotEq) {
+                cr.select(root).where(cb.and(cb.equal(joinObject.get("uuid"), tmpUuid), cb.notEqual(root.get("version"), tmpVersion)));
+            } else {
+                cr.select(root).where(cb.and(cb.equal(joinObject.get("uuid"), tmpUuid), cb.equal(root.get("version"), tmpVersion)));
+            }
+            Query<ShelfTmpVcs> prodVcsCmd = session.createQuery(cr);
+            listVcs = prodVcsCmd.getResultList();
+            trans.commit();
+        } catch (HibernateException | NullPointerException e) {
+            if (null != trans) {
+                trans.rollback();
+            }
+            logger.info(e.getMessage());
+            throw e;
+        }
+        return listVcs;
     }
 }

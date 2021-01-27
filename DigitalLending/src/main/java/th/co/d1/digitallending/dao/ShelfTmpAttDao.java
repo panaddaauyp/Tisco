@@ -10,7 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -18,7 +18,6 @@ import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
 import org.json.JSONObject;
 import th.co.d1.digitallending.entity.ShelfTmpAttach;
-
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
 
 /**
@@ -27,26 +26,23 @@ import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
  */
 public class ShelfTmpAttDao {
 
-    private Session session;
-    Logger logger = Logger.getLogger(ShelfTmpAttDao.class);
+    Logger logger = Logger.getLogger(ShelfTmpAttDao.class.getName());
 
     public List<ShelfTmpAttach> getListShelfTmpAttach(String dbEnv) {
         List<ShelfTmpAttach> shelfTmpAttach = new ArrayList<>();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTmpAttach.class);
             criteria.add(Restrictions.eq("status", 1));
             shelfTmpAttach = criteria.list();
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return shelfTmpAttach;
     }
@@ -59,9 +55,11 @@ public class ShelfTmpAttDao {
             trans.commit();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            trans.rollback();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            if (trans != null) {
+                trans.rollback();
+            }
             return new JSONObject().put("status", false).put("description", "" + e);
         }
     }
@@ -74,34 +72,31 @@ public class ShelfTmpAttDao {
             trans.commit();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            trans.rollback();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            if (trans != null) {
+                trans.rollback();
+            }
             return new JSONObject().put("status", false).put("description", "" + e);
         }
     }
 
     public JSONObject updateStatus(String dbEnv, String attUuid, int status) {
         Transaction trans = null;
-        Connection con = null;
         PreparedStatement ps = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
-            con = session.doReturningWork((Connection conn) -> conn);
             StringBuilder prodCmd = new StringBuilder();
             prodCmd.append("update ShelfTmpAttach set status = ? Where uuid = ?");
-            ps = con.prepareStatement(prodCmd.toString());
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(prodCmd.toString());
             ps.setInt(1, status);
             ps.setString(2, attUuid);
             ps.executeUpdate();
             trans.commit();
-            ps.close();
-            session.close();
             return new JSONObject().put("status", true).put("description", "");
         } catch (HibernateException | NullPointerException | SQLException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
@@ -111,14 +106,8 @@ public class ShelfTmpAttDao {
                 if (ps != null) {
                     ps.close();
                 }
-                if (null != session) {
-                    session.close();
-                }
-                if (!con.isClosed()) {
-                    con.close();
-                }
             } catch (SQLException ex) {
-                logger.error("" + ex);
+                logger.info(ex.getMessage());
             }
         }
     }

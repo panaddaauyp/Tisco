@@ -1,36 +1,37 @@
 package th.co.d1.digitallending.controller;
 
+import com.tfglog.LogSingleton;
+import com.tfglog.Log_decorator;
+import com.tfglog.TfgLogger;
+
+import java.sql.SQLException;
+import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
+import org.apache.commons.lang.time.DateUtils;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-
-import org.springframework.web.bind.annotation.ResponseBody;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
-
-import static th.co.d1.digitallending.util.Utils.*;
-import static th.co.d1.digitallending.util.HttpUtil.*;
-
-import th.co.d1.digitallending.entity.ShelfComp;
-
+import org.springframework.web.bind.annotation.ResponseBody;
 import th.co.d1.digitallending.dao.ShelfCompDao;
 import th.co.d1.digitallending.dao.ShelfProductVcsDao;
 import th.co.d1.digitallending.dao.ShelfTmpAttDao;
@@ -39,6 +40,7 @@ import th.co.d1.digitallending.dao.ShelfTmpDetailDao;
 import th.co.d1.digitallending.dao.ShelfTmpVcsDao;
 import th.co.d1.digitallending.dao.SysLookupDao;
 import th.co.d1.digitallending.entity.Memlookup;
+import th.co.d1.digitallending.entity.ShelfComp;
 import th.co.d1.digitallending.entity.ShelfProductVcs;
 import th.co.d1.digitallending.entity.ShelfTmp;
 import th.co.d1.digitallending.entity.ShelfTmpAttach;
@@ -47,9 +49,10 @@ import th.co.d1.digitallending.entity.ShelfTmpVcs;
 import static th.co.d1.digitallending.util.ApplicationStartup.headersJSON;
 import th.co.d1.digitallending.util.HibernateUtil;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
+import th.co.d1.digitallending.util.ProductUtils;
 import th.co.d1.digitallending.util.StatusUtils;
 import th.co.d1.digitallending.util.TemplateUtils;
-import th.co.d1.digitallending.util.Utils;
+import static th.co.d1.digitallending.util.Utils.*;
 import th.co.d1.digitallending.util.ValidUtils;
 
 @Controller
@@ -57,56 +60,65 @@ import th.co.d1.digitallending.util.ValidUtils;
 public class TemplateV1Controller {
 
 //    boolean premission = true;
-    Logger logger = Logger.getLogger(TemplateV1Controller.class);
+    Logger logger = Logger.getLogger(TemplateV1Controller.class.getName());
+    TfgLogger log = LogSingleton.getTfgLogger();
 
     /*first create template must get tmpUuid , vscUuid form api*/
+    @Log_decorator
     @RequestMapping(value = "component", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getComponent(HttpSession session, HttpServletResponse response, HttpServletRequest request) {
+    public ResponseEntity<?> getComponent(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /shelf/template/v1/component");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
+        log.info("GET : /shelf/template/v1/component");
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("data", new JSONObject()).put("confirmmsg", "");
         try {
             returnVal.put("data", new JSONObject()
                     .put("tmpUuid", getUUID())
                     .put("vcsUuid", getUUID())
-                    .put("componentList", getComponentList(Utils.validateSubStateFromHeader(request))));
+                    .put("componentList", getComponentList(subState)));
 
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            returnVal.put("status", 500).put("description", "" + e);
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "list", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request) {
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
+    public ResponseEntity<?> getTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("data", new JSONObject()).put("confirmmsg", "");
         logger.info("GET : /shelf/template/v1/list");
+        log.info("GET : /shelf/template/v1/list");
         try {
-            returnVal.put("data", new TemplateUtils().getTemplateList(Utils.validateSubStateFromHeader(request)));
+            returnVal.put("data", new TemplateUtils().getTemplateList(subState));
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            returnVal.put("status", 500)
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
                     .put("description", "" + e);
 
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "info/{vcsUuid}", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getInfoByUuid(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String vcsUuid) {
+    public ResponseEntity<?> getInfoByUuid(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String vcsUuid, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /shelf/template/v1/info/" + vcsUuid);
+        log.info("GET : /shelf/template/v1/info/" + vcsUuid);
         HttpStatus httpStatus = HttpStatus.OK;
-        JSONObject returnVal = new JSONObject().put("status", httpStatus).put("description", "").put("data", new JSONObject());
+        JSONObject returnVal = new JSONObject().put("status", httpStatus.value()).put("description", "").put("data", new JSONObject()).put("confirmmsg", "");
         try {
-            ShelfTmpVcs shelfTmpVcs = new ShelfTmpVcsDao().getListByUuid(Utils.validateSubStateFromHeader(request), vcsUuid);
+            ShelfTmpVcs shelfTmpVcs = new ShelfTmpVcsDao().getListByUuid(subState, vcsUuid);
             int intStats = shelfTmpVcs.getStatus();
-            JSONObject getStatusValue = getActionFromStatus(Utils.validateSubStateFromHeader(request), intStats);
-//            String strStatus = new SysLookupDao().getMemLookupByCode(Utils.validateSubStateFromHeader(request), String.valueOf(shelfTmpVcs.getStatus())).getLookupnameen();
+            JSONObject getStatusValue = getActionFromStatus(subState, intStats);
+//            String strStatus = new SysLookupDao().getMemLookupByCode(subState, String.valueOf(shelfTmpVcs.getStatus())).getLookupnameen();
 
 //        JSONObject userInfo = new JSONObject()
 //                .put("userName",shelfTmpVcs.getCreateBy())
@@ -117,12 +129,12 @@ public class TemplateV1Controller {
 //                        .put("businessLine",shelfTmpVcs.getTmpUuid().getBusinessLine())
 //                    );
 //        logger.info(checkPermission("template","create","maker"));
-            Memlookup memLookup = new SysLookupDao().getMemLookupByCode(Utils.validateSubStateFromHeader(request), ValidUtils.null2NoData(shelfTmpVcs.getStatus()));
+            Memlookup memLookup = new SysLookupDao().getMemLookupByCode(subState, ValidUtils.null2NoData(shelfTmpVcs.getStatus()));
             JSONObject header = new JSONObject()
                     .put("tmpUuid", shelfTmpVcs.getTmpUuid().getUuid())
                     .put("vcsUuid", shelfTmpVcs.getUuid())
                     .put("name", shelfTmpVcs.getTmpUuid().getTmpName())
-                    .put("effectiveDate", shelfTmpVcs.getEffectiveDate())
+                    .put("effectiveDate", th.co.d1.digitallending.util.DateUtils.getDisplayEnDate(shelfTmpVcs.getEffectiveDate(), "yyyy-MM-dd"))
                     .put("enable", true)
                     .put("readOnly", getStatusValue.has("readOnly") ? getStatusValue.getBoolean("readOnly") : "") // check status 
                     .put("action", "")
@@ -130,18 +142,38 @@ public class TemplateV1Controller {
                     .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
                     .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "")
                     .put("createDate", shelfTmpVcs.getCreateAt())
-                    .put("createDate", shelfTmpVcs.getCreateBy())
+                    .put("createBy", shelfTmpVcs.getCreateBy())
                     .put("updateDate", (shelfTmpVcs.getUpdateAt() == null ? "" : shelfTmpVcs.getUpdateAt()))
                     .put("updateBy", (shelfTmpVcs.getUpdateBy() == null ? "" : shelfTmpVcs.getUpdateBy())
                     );
 
+            List<ShelfTmpVcs> listTmpVcsTmpUuid = new ShelfTmpVcsDao().getListByTmpUuid(subState, shelfTmpVcs.getTmpUuid().getUuid());
+            JSONArray vcsTmpVersion = new JSONArray();
+            System.out.println("listTmpVcsTmpUuid : " + listTmpVcsTmpUuid.size());
+            for (int i = 0; i < listTmpVcsTmpUuid.size(); i++) {
+                ShelfTmpVcs obj = listTmpVcsTmpUuid.get(i);
+                Memlookup vcsStatus = new SysLookupDao().getMemLookupByCode(subState, ValidUtils.null2NoData(obj.getStatus()));
+                JSONObject eachDetail = new JSONObject()
+                        .put("vcsUuid", obj.getUuid())
+                        .put("version", obj.getVersion())
+                        .put("data", obj.getAttr1())
+                        .put("templateName", obj.getTmpUuid().getTmpName())
+                        .put("status", null != vcsStatus ? ValidUtils.null2NoData(vcsStatus.getLookupcode()) : "")
+                        .put("statusNameTh", null != vcsStatus ? ValidUtils.null2NoData(vcsStatus.getLookupnameth()) : "")
+                        .put("statusNameEn", null != vcsStatus ? ValidUtils.null2NoData(vcsStatus.getLookupnameen()) : "")
+                        .put("activeDate", th.co.d1.digitallending.util.DateUtils.getDisplayEnDate(obj.getEffectiveDate(), "yyyy-MM-dd"));
+                vcsTmpVersion.put(eachDetail);
+            }
+
             JSONArray infoData = new JSONArray();
             for (int i = 0; i < shelfTmpVcs.getShelfTmpDetailList().size(); i++) {
                 ShelfTmpDetail detail = shelfTmpVcs.getShelfTmpDetailList().get(i);
+
                 JSONObject eachDetail = new JSONObject().put("seq", detail.getSeqNo())
                         .put("compUuid", detail.getCompUuid().getUuid())
                         .put("detailUuid", detail.getUuid())
                         .put("compCode", detail.getCompUuid().getCompCode())
+                        .put("compName", detail.getCompUuid().getCompName())
                         .put("enable", detail.getFlagEnable());
 
                 if (detail.getCompUuid().getCompCode().equalsIgnoreCase("004")) {
@@ -152,10 +184,27 @@ public class TemplateV1Controller {
                             JSONObject obj = attrArr.getJSONObject(aai);
 //                            if (detail.getCompUuid().getUuid().equalsIgnoreCase(obj.getString("compUuid"))) {
                             if (obj.has("termsNCondition")) {
+//                                obj.put("version", String.valueOf(shelfTmpVcs.getVersion()));
                                 eachDetail.put("data", obj);
                             }
                         }
+
                     }
+                    List<ShelfTmpVcs> list = new ShelfTmpVcsDao().getListByTmpUuidAndTmpVersion(subState, shelfTmpVcs.getTmpUuid().getUuid(), 0, true);
+                    JSONArray termCons = new JSONArray();
+                    list.forEach((tmpVcs) -> {
+                        if (tmpVcs.getAttr1() != null && !tmpVcs.getAttr1().isEmpty()) {
+                            JSONArray attrArr = new JSONArray(tmpVcs.getAttr1());
+                            for (int aai = 0; aai < attrArr.length(); aai++) {
+                                JSONObject obj = attrArr.getJSONObject(aai);
+                                if (obj.has("termsNCondition")) {
+//                                    obj.put("version", String.valueOf(shelfTmpVcs.getVersion()));
+                                    termCons.put(obj);
+                                }
+                            }
+                        }
+                    });
+                    eachDetail.put("termNConVer", termCons);
                 } else if (detail.getCompUuid().getCompCode().equalsIgnoreCase("006")) {
                     if (shelfTmpVcs.getAttr1() != null && !shelfTmpVcs.getAttr1().isEmpty()) {
                         JSONArray attrArr = new JSONArray(shelfTmpVcs.getAttr1());
@@ -177,24 +226,28 @@ public class TemplateV1Controller {
             }
             JSONObject value = new JSONObject()
                     .put("header", header)
-                    .put("info", infoData);
+                    .put("info", infoData)
+                    .put("vcsVersion", vcsTmpVersion);
             returnVal.put("data", value);
-        } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
     /* create new template */
+    @Log_decorator
     @RequestMapping(value = "save", method = POST)
     @ResponseBody
-    public ResponseEntity<?> setTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request) {
-        JSONObject returnVal = new JSONObject();
+    public ResponseEntity<?> setTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /shelf/template/v1/save");
+        log.info("POST : /shelf/template/v1/save");
         HttpStatus httpStatus = HttpStatus.OK;
+        JSONObject returnVal = new JSONObject().put("status", httpStatus.value()).put("description", "").put("confirmmsg", "");
         try {
-            JSONObject reqValue = getPostParam(request);
+            JSONObject reqValue = new JSONObject(reqBody);
 
             String[] reqField = {"userInfo", "data"};
             for (int i = 0; i < reqField.length; i++) {
@@ -209,33 +262,35 @@ public class TemplateV1Controller {
             /* override for create function */
 //        reqValue.getJSONObject("data").getJSONObject("header").put("action","save");
             JSONObject data = reqValue.getJSONObject("data");
-            System.out.println("data : " + data);
+            //System.out.println("data : " + data);
             JSONObject header = data.getJSONObject("header");
             String action = header.getString("action");
-            int vscStatus = getStatusByAction(Utils.validateSubStateFromHeader(request), action);
+            int vscStatus = getStatusByAction(subState, action);
             if (vscStatus != 0) {
-                returnVal = saveOrUpdate(Utils.validateSubStateFromHeader(request), reqValue, "newTemplate", vscStatus);
+                returnVal = saveOrUpdate(subState, reqValue, "newTemplate", vscStatus);
             } else {
-                httpStatus = HttpStatus.BAD_REQUEST;
-                returnVal.put("status", httpStatus.value()).put("description", "action is request Field");
+                returnVal.put("status", HttpStatus.BAD_REQUEST.value()).put("description", "action is request Field");
             }
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
     /* create new version or Update exsit version */
+    @Log_decorator
     @RequestMapping(value = "save", method = PUT)
     @ResponseBody
-    public ResponseEntity<?> putTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request) {
-        JSONObject returnVal = new JSONObject();
+    public ResponseEntity<?> putTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("PUT : /shelf/template/v1/save");
+        log.info("PUT : /shelf/template/v1/save");
         HttpStatus httpStatus = HttpStatus.OK;
+        JSONObject returnVal = new JSONObject().put("status", httpStatus.value()).put("description", "").put("confirmmsg", "");
         try {
-            JSONObject reqValue = getPostParam(request);
-            System.out.println("reqValue : " + reqValue);
+            JSONObject reqValue = new JSONObject(reqBody);
+            //System.out.println("reqValue : " + reqValue);
             String[] reqField = {"userInfo", "data"};
             for (int i = 0; i < reqField.length; i++) {
                 if (!reqValue.has(reqField[i])) {
@@ -256,30 +311,33 @@ public class TemplateV1Controller {
          * กรณี save จะเป็น In Progress = 88
             - กรณี Save แล้วมี Version นี้อยู่ ในสถานะ 88 ให้ Update
              */
-            JSONObject actionFlag = checkActionTemplateStatus(Utils.validateSubStateFromHeader(request), reqValue);
+            JSONObject actionFlag = checkActionTemplateStatus(subState, reqValue);
 
             if (actionFlag.getBoolean("flag") && actionFlag.getInt("vcsStatus") != 0) {
-                returnVal = saveOrUpdate(Utils.validateSubStateFromHeader(request), reqValue, actionFlag.getString("sysAction"), actionFlag.getInt("vcsStatus"));
+                returnVal = saveOrUpdate(subState, reqValue, actionFlag.getString("sysAction"), actionFlag.getInt("vcsStatus"));
             } else {
                 httpStatus = HttpStatus.BAD_REQUEST;
                 logger.info("## ERROR : " + actionFlag.getString("description"));
                 returnVal.put("status", httpStatus.value()).put("description", actionFlag.getString("description"));
             }
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, httpStatus));
     }
 
+    @Log_decorator
     @RequestMapping(value = "pending/{reqStatus}", method = PUT)
     @ResponseBody
-    public ResponseEntity<?> approveTmpVsc(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String reqStatus) {
+    public ResponseEntity<?> approveTmpVsc(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @PathVariable String reqStatus, @RequestHeader(value = "sub_state", required = false) String subState) {
 
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "");
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "");
         logger.info("PUT : /shelf/template/v1/pending/" + reqStatus);
+        log.info("PUT : /shelf/template/v1/pending/" + reqStatus);
         HttpStatus httpStatus = HttpStatus.OK;
-        JSONObject reqValue = getPostParam(request);
+        JSONObject reqValue = new JSONObject(reqBody);
         try {
 
             String[] reqField = {"userInfo", "data"};
@@ -298,92 +356,203 @@ public class TemplateV1Controller {
 //            String tmpUuid = header.getString("tmpUuid");
             String vcsUuid = header.getString("vcsUuid");
 
-            ShelfTmpDetail shelfTmpDetail = new ShelfTmpDetailDao().getAttrByVcsUuid(Utils.validateSubStateFromHeader(request), vcsUuid);
-            JSONObject getUpdateStatus = setStatusTemplate(Utils.validateSubStateFromHeader(request), reqStatus, reqValue, shelfTmpDetail.getAttUuid().getUuid());
+            ShelfTmpDetail shelfTmpDetail = new ShelfTmpDetailDao().getAttrByVcsUuid(subState, vcsUuid);
+            JSONObject getUpdateStatus = setStatusTemplate(subState, reqStatus, reqValue, shelfTmpDetail.getAttUuid().getUuid());
 
             if (!getUpdateStatus.getBoolean("status")) {
                 httpStatus = HttpStatus.BAD_REQUEST;
                 returnVal.put("status", httpStatus.value()).put("description", getUpdateStatus.getString("description"));
             }
-        } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
         }
         return (new ResponseEntity<>(reqValue.toString(), headersJSON, httpStatus));
 
     }
 
+    @Log_decorator
     @RequestMapping(value = "list/active", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getActiveTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request) {
-        Integer statusActive = StatusUtils.getActive(Utils.validateSubStateFromHeader(request)).getStatusCode();
-        JSONArray returnVal = new TemplateUtils().getTemplateListByStatus(Utils.validateSubStateFromHeader(request), statusActive);
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    public ResponseEntity<?> getActiveTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /shelf/template/v1/list/active");
+        log.info("GET : /shelf/template/v1/list/active");
+//        CompletableFuture.runAsync(() -> {
+        HttpStatus httpStatus = HttpStatus.OK;
+        JSONArray returnVal = new JSONArray();
+        try {
+            TemplateUtils.setActiveExpireTemplate(subState);
+//        });
+            Integer statusActive = StatusUtils.getActive(subState).getStatusCode();
+            returnVal = new TemplateUtils().getTemplateListByStatus(subState, statusActive);
+        } catch (JSONException | NullPointerException | HibernateException | SQLException e) {
+            httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, httpStatus));
     }
 
+    @Log_decorator
+    @RequestMapping(value = "list/activeinactive", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getActiveInActiveTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /shelf/template/v1/list/activeinactive");
+        log.info("GET : /shelf/template/v1/list/activeinactive");
+        HttpStatus httpStatus = HttpStatus.OK;
+        JSONArray returnVal = new JSONArray();
+        try {
+            TemplateUtils.setActiveExpireTemplate(subState);
+            returnVal = new TemplateUtils().getActiveInActiveTemplateList(subState);
+        } catch (JSONException | NullPointerException | HibernateException | SQLException e) {
+            httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, httpStatus));
+    }
+
+    @Log_decorator
     @RequestMapping(value = "list/{status}", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplateListByStatus(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable int status) {
-        JSONArray returnVal = new TemplateUtils().getTemplateListByStatus(Utils.validateSubStateFromHeader(request), status);
+    public ResponseEntity<?> getTemplateListByStatus(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable int status, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("PUT : /shelf/template/v1/list/{status}" + status);
+        log.info("PUT : /shelf/template/v1/list/{status}" + status);
+        JSONArray returnVal = new TemplateUtils().getTemplateListByStatus(subState, status);
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "list/product", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplateListAndProductUsage(HttpSession session, HttpServletResponse response, HttpServletRequest request) {
-        JSONArray returnVal = new ShelfTmpDao().getTemplateListAndProductUsage(Utils.validateSubStateFromHeader(request));
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    public ResponseEntity<?> getTemplateListAndProductUsage(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /shelf/template/v1/list/product");
+        log.info("GET : /shelf/template/v1/list/product");
+        JSONArray returnVal = new JSONArray();
+        HttpStatus httpStatus = HttpStatus.OK;
+        try {
+            returnVal = new ShelfTmpDao().getTemplateListAndProductUsage(subState);
+        } catch (JSONException | NullPointerException | HibernateException | SQLException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, httpStatus));
     }
 
+    @Log_decorator
     @RequestMapping(value = "search", method = RequestMethod.POST)
     @ResponseBody
-    public ResponseEntity<?> searchTemplage(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> searchTemplate(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /shelf/template/v1/search");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
+        log.info("POST : /shelf/template/v1/search");
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("data", new JSONObject());
         try {
-            JSONObject json = new JSONObject(payload);
+            TemplateUtils.setActiveExpireTemplate(subState);
+            ProductUtils.setActiveExpireProduct(subState);
+            JSONObject json = new JSONObject(reqBody);
             String templateName = json.has("templateName") ? json.getString("templateName") : "";
-            Integer status = json.has("status") ? ValidUtils.str2BigInteger(ValidUtils.obj2String(json.get("status"))) : null;
+            JSONArray status = json.has("status") ? json.getJSONArray("status") : new JSONArray();
             Date startCreateDate = ValidUtils.str2Date(json.has("startCreateDate") ? (json.getString("startCreateDate").isEmpty() ? null : json.getString("startCreateDate")) : null);
             Date endCreateDate = ValidUtils.str2Date(json.has("endCreateDate") ? (json.getString("endCreateDate").isEmpty() ? null : json.getString("endCreateDate")) : null);
             Date startUpdateDate = ValidUtils.str2Date(json.has("startUpdateDate") ? (json.getString("startUpdateDate").isEmpty() ? null : json.getString("startUpdateDate")) : null);
             Date endUpdateDate = ValidUtils.str2Date(json.has("endUpdateDate") ? (json.getString("endUpdateDate").isEmpty() ? null : json.getString("endUpdateDate")) : null);
             Date effectiveDateFrom = ValidUtils.str2Date(json.has("effectiveDateFrom") ? (json.getString("effectiveDateFrom").isEmpty() ? null : json.getString("effectiveDateFrom")) : null);
             Date effectiveDateTo = ValidUtils.str2Date(json.has("effectiveDateTo") ? (json.getString("effectiveDateTo").isEmpty() ? null : json.getString("effectiveDateTo")) : null);
-            returnVal.put("data", new ShelfTmpVcsDao().searchShelfTemplate(Utils.validateSubStateFromHeader(request), templateName, status, startCreateDate, endCreateDate, startUpdateDate, endUpdateDate, effectiveDateFrom, effectiveDateTo));
-        } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            returnVal.put("status", 500)
+            returnVal.put("data", new ShelfTmpVcsDao().searchShelfTemplate(subState, templateName, status, startCreateDate, endCreateDate, startUpdateDate, endUpdateDate, effectiveDateFrom, effectiveDateTo));
+        } catch (JSONException | NullPointerException | HibernateException | SQLException | ParseException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "checkTemplateName", method = RequestMethod.POST)
+    @ResponseBody
+    public ResponseEntity<?> checkTemplateName(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("POST : /shelf/theme/v1/checkTemplateName");
+        log.info("POST : /shelf/theme/v1/checkTemplateName");
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("data", new JSONObject());
+        try {
+            JSONObject json = new JSONObject(reqBody);
+            String templateName = json.has("templateName") ? json.getString("templateName") : "";
+            if (!templateName.trim().isEmpty()) {
+                List<ShelfTmpVcs> templateVcs = new ShelfTmpVcsDao().getShelfTemplateByNameStatusActiveAndInActive(subState, templateName);
+                if (templateVcs.isEmpty()) {
+                    returnVal.put("data", new JSONObject().put("status", true).put("description", "You can use this name."));
+                } else {
+                    returnVal.put("data", new JSONObject().put("status", false).put("description", "Template name is used."));
+                }
+            } else {
+                returnVal.put("status", HttpStatus.BAD_REQUEST.value())
+                        .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0042"));
+            }
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
                     .put("description", "" + e);
 
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
-    @RequestMapping(value = "checkTemplateName", method = RequestMethod.POST)
+    @Log_decorator
+    @RequestMapping(value = "listStatus", method = POST)
     @ResponseBody
-    public ResponseEntity<?> checkTemplateName(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
-        logger.info("POST : /shelf/theme/v1/checkTemplateName");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
+    public ResponseEntity<?> getTemplateListByStatus(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("data", new JSONObject());
+        logger.info("POST : /shelf/template/v1/listStatus");
+        log.info("POST : /shelf/template/v1/listStatus");
         try {
-            JSONObject json = new JSONObject(payload);
-            String templateName = json.has("templateName") ? json.getString("templateName") : "";
-            if (!templateName.trim().isEmpty()) {
-                List<ShelfTmpVcs> templateVcs = new ShelfTmpVcsDao().getShelfTemplateByNameStatusActiveAndInActive(Utils.validateSubStateFromHeader(request), templateName);
-                if (templateVcs.isEmpty()) {
-                    returnVal.put("data", new JSONObject().put("stauts", true).put("description", "You can use this name."));
-                } else {
-                    returnVal.put("data", new JSONObject().put("stauts", false).put("description", "Template name is used."));
-                }
-            } else {
-                returnVal.put("status", 400)
-                        .put("description", "Template name is empty.");
+            TemplateUtils.setActiveExpireTemplate(subState);
+            JSONArray reqStatus = new JSONArray(reqBody);
+            List statusList = new ArrayList<>();
+            for (int i = 0; i < reqStatus.length(); i++) {
+                statusList.add(reqStatus.getInt(i));
+            }
+            returnVal.put("data", new TemplateUtils().getTemplateListByStatus(subState, statusList));
+        } catch (JSONException | NullPointerException | SQLException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .put("description", "" + e);
+
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "api/check", method = RequestMethod.POST)
+    @ResponseBody
+    public ResponseEntity<?> checkTemplate(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @RequestBody String reqBody,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) {
+        logger.info(String.format("GET : /shelf/template/v1/api/check"));
+        log.info(String.format("GET : /shelf/template/v1/api/check"));
+        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("confirmmsg", "").put("data", new JSONObject());
+        try {
+            String username = "", businessDept = "", businessLine = "";
+            JSONObject datas = new JSONObject(reqBody);
+            if (datas.has("userInfo")) {
+                JSONObject objUser = datas.getJSONObject("userInfo");
+                username = (objUser.has("username") ? objUser.getString("username") : "");
+                businessDept = (objUser.has("businessDept") ? objUser.getString("businessDept") : "");
+                businessLine = (objUser.has("businessLine") ? objUser.getString("businessLine") : "");
+            }
+            if (datas.has("data")) {
+                returnVal = checkTemplate(subState, datas.getJSONObject("data"));
             }
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
+            logger.info(e.getMessage());
+            log.error("" + e);
             e.printStackTrace();
-            returnVal.put("status", 500)
+            returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value())
                     .put("description", "" + e);
 
         }
@@ -429,12 +598,12 @@ public class TemplateV1Controller {
                 /* no status in syslookup */
                 httpStatus = HttpStatus.BAD_REQUEST;
                 logger.info("## ERROR : state to action is not define");
-                returnVal.put("status", httpStatus.value()).put("description", "state to action is not define");
+                returnVal.put("status", httpStatus.value()).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0043"));
             }
 
-        } catch (NumberFormatException | JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NumberFormatException | JSONException | NullPointerException | SQLException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
         }
 
         return returnVal;
@@ -444,6 +613,7 @@ public class TemplateV1Controller {
 
         logger.info("checkActionTemplateStatus ");
         JSONObject returnVal = new JSONObject().put("readOnly", false);
+        try {
 //        JSONObject userInfo = reqValue.getJSONObject("userInfo");
 //        String userName = userInfo.getString("userName");
 
@@ -451,29 +621,68 @@ public class TemplateV1Controller {
 //        String companyCode = companyInfo.getString("companyCode");
 //        String businessDept = companyInfo.getString("businessDept");
 //        String businessLine = companyInfo.getString("businessLine");
-        JSONObject data = reqValue.getJSONObject("data");
-        JSONObject header = data.getJSONObject("header");
-        String tmpName = header.getString("name");
+            JSONObject data = reqValue.getJSONObject("data");
+            JSONObject header = data.getJSONObject("header");
+            String tmpName = header.getString("name");
 //        String tmpUuid = header.getString("tmpUuid");
-        String vcsUuid = header.getString("vcsUuid");
+            String vcsUuid = header.getString("vcsUuid");
 //        String enable = header.getBoolean("enable");
-        String action = header.getString("action");
+            String action = header.getString("action");
 //        Date effectiveDate = convert2Date(header.getString("effectiveDate"));
 
 //        System.out.println("Action -> " + action);
-        int vcsStatus = getStatusByAction(dbEnv, action);
+            int vcsStatus = getStatusByAction(dbEnv, action);
 
-        ShelfTmpVcs shelfTmpVcs = new ShelfTmpVcsDao().getListByUuid(dbEnv, vcsUuid);
-        Memlookup memlookup = new SysLookupDao().getMemLookupByCode(dbEnv, String.valueOf(shelfTmpVcs.getStatus()));
-        JSONObject flagAction = new JSONObject().put("edit", memlookup.getFlagedit()).put("create", memlookup.getFlagcreate());
+            ShelfTmpVcs shelfTmpVcs = new ShelfTmpVcsDao().getListByUuid(dbEnv, vcsUuid);
+            Memlookup memlookup = new SysLookupDao().getMemLookupByCode(dbEnv, String.valueOf(shelfTmpVcs.getStatus()));
+            JSONObject flagAction = new JSONObject().put("edit", memlookup.getFlagedit()).put("create", memlookup.getFlagcreate());
 
-        if (vcsStatus != 0) {
+            if (vcsStatus != 0) {
+                if (flagAction.getBoolean("edit") || action.equalsIgnoreCase("sendapprove") || action.equalsIgnoreCase("senddelete") || action.equalsIgnoreCase("reject")) {
+                    returnVal.put("flag", true)
+                            .put("sysAction", "update")
+                            .put("vcsStatus", vcsStatus)
+                            .put("description", "");
+                } else if (flagAction.getBoolean("create") || (action.equalsIgnoreCase("approve") || action.equalsIgnoreCase("delete"))) {
+                    returnVal.put("flag", true)
+                            .put("sysAction", "newVersion")
+                            .put("vcsStatus", vcsStatus)
+                            .put("description", "");
+                } else {
+                    returnVal.put("flag", false)
+                            .put("sysAction", "")
+                            .put("vcsStatus", vcsStatus)
+                            .put("description", tmpName + "  - Version " + shelfTmpVcs.getVersion() + " -> Can't because Status " + memlookup.getLookupnameen());
+                }
+            } else {
+                returnVal.put("flag", false)
+                        .put("sysAction", "")
+                        .put("vcsStatus", vcsStatus)
+                        .put("description", tmpName + "  - Version " + shelfTmpVcs.getVersion() + " -> not define 'save or send to approve'");
+            }
+
+            if (!flagAction.getBoolean("edit") && flagAction.getBoolean("create")) {
+                returnVal.put("readOnly", true);
+            }
+            logger.info(tmpName + " -> " + returnVal);
+        } catch (NullPointerException | HibernateException e) {
+            throw e;
+        }
+        return returnVal;
+    }
+
+    private JSONObject getActionFromStatus(String dbEnv, int vcsStatus) {
+        JSONObject returnVal = new JSONObject().put("readOnly", false);
+        try {
+            Memlookup memlookup = new SysLookupDao().getMemLookupByCode(dbEnv, String.valueOf(vcsStatus));
+            JSONObject flagAction = new JSONObject().put("edit", memlookup.getFlagedit()).put("create", memlookup.getFlagcreate());
+
             if (flagAction.getBoolean("edit")) {
                 returnVal.put("flag", true)
                         .put("sysAction", "update")
                         .put("vcsStatus", vcsStatus)
                         .put("description", "");
-            } else if (flagAction.getBoolean("create") || (action.equalsIgnoreCase("approve") || action.equalsIgnoreCase("reject"))) {
+            } else if (flagAction.getBoolean("create")) {
                 returnVal.put("flag", true)
                         .put("sysAction", "newVersion")
                         .put("vcsStatus", vcsStatus)
@@ -482,62 +691,36 @@ public class TemplateV1Controller {
                 returnVal.put("flag", false)
                         .put("sysAction", "")
                         .put("vcsStatus", vcsStatus)
-                        .put("description", tmpName + "  - Version " + shelfTmpVcs.getVersion() + " -> Can't because Status " + memlookup.getLookupnameen());
+                        .put("description", "Can't because Status " + memlookup.getLookupnameen());
             }
-        } else {
-            returnVal.put("flag", false)
-                    .put("sysAction", "")
-                    .put("vcsStatus", vcsStatus)
-                    .put("description", tmpName + "  - Version " + shelfTmpVcs.getVersion() + " -> not define 'save or send to approve'");
+
+            if (!flagAction.getBoolean("edit") && flagAction.getBoolean("create")) {
+                returnVal.put("readOnly", true);
+            }
+        } catch (NullPointerException | HibernateException e) {
+            throw e;
         }
-
-        if (!flagAction.getBoolean("edit") && flagAction.getBoolean("create")) {
-            returnVal.put("readOnly", true);
-        }
-
-        logger.info(tmpName + " -> " + returnVal);
-        return returnVal;
-    }
-
-    private JSONObject getActionFromStatus(String dbEnv, int vcsStatus) {
-        JSONObject returnVal = new JSONObject().put("readOnly", false);
-        Memlookup memlookup = new SysLookupDao().getMemLookupByCode(dbEnv, String.valueOf(vcsStatus));
-        JSONObject flagAction = new JSONObject().put("edit", memlookup.getFlagedit()).put("create", memlookup.getFlagcreate());
-
-        if (flagAction.getBoolean("edit")) {
-            returnVal.put("flag", true)
-                    .put("sysAction", "update")
-                    .put("vcsStatus", vcsStatus)
-                    .put("description", "");
-        } else if (flagAction.getBoolean("create")) {
-            returnVal.put("flag", true)
-                    .put("sysAction", "newVersion")
-                    .put("vcsStatus", vcsStatus)
-                    .put("description", "");
-        } else {
-            returnVal.put("flag", false)
-                    .put("sysAction", "")
-                    .put("vcsStatus", vcsStatus)
-                    .put("description", "Can't because Status " + memlookup.getLookupnameen());
-        }
-
-        if (!flagAction.getBoolean("edit") && flagAction.getBoolean("create")) {
-            returnVal.put("readOnly", true);
-        }
-
         return returnVal;
     }
 
     private int getStatusByAction(String dbEnv, String action) {
         int vcsStatus = 0;
-        if (action.equalsIgnoreCase("save")) {
-            vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inprogress").getLookupcode());
-        } else if (action.equalsIgnoreCase("sendapprove")) {
-            vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "waittoapprove").getLookupcode());
-        } else if (action.equalsIgnoreCase("approve")) {
-            vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
-        } else if (action.equalsIgnoreCase("reject")) {
-            vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "reject").getLookupcode());
+        try {
+            if (action.equalsIgnoreCase("save")) {
+                vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inprogress").getLookupcode());
+            } else if (action.equalsIgnoreCase("sendapprove")) {
+                vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "waittoapprove").getLookupcode());
+            } else if (action.equalsIgnoreCase("approve")) {
+                vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
+            } else if (action.equalsIgnoreCase("senddelete")) {
+                vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "waittodelete").getLookupcode());
+            } else if (action.equalsIgnoreCase("delete")) {
+                vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "delete").getLookupcode());
+            } else if (action.equalsIgnoreCase("reject")) {
+                vcsStatus = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "reject").getLookupcode());
+            }
+        } catch (NullPointerException | HibernateException e) {
+            throw e;
         }
         return vcsStatus;
     }
@@ -554,6 +737,10 @@ public class TemplateV1Controller {
             Integer statusExpired = StatusUtils.getExpired(dbEnv).getStatusCode();
             Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
             Integer statusReject = StatusUtils.getReject(dbEnv).getStatusCode();
+            Integer statusWaitToDelete = StatusUtils.getWaittoDelete(dbEnv).getStatusCode();
+            Integer statusDelete = StatusUtils.getDelete(dbEnv).getStatusCode();
+            Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+            Integer statusNotUse = StatusUtils.getNotUse(dbEnv).getStatusCode();
 //            Integer statusTerminate = StatusUtils.getTerminate(dbEnv).getStatusCode();
 //            ShelfTmpVcs activeVcs = new ShelfTmpVcs();
 //            ShelfTmpVcs inactiveVcs = new ShelfTmpVcs();
@@ -581,19 +768,35 @@ public class TemplateV1Controller {
 //                List<ShelfTmpVcs> shelfTmpVcsList = shelfTmp.getShelfTmpVcsList();
             ShelfTmpVcs tmpVcs = new ShelfTmpVcsDao().getListByUuid(dbEnv, vcsUuid);
             List<ShelfTmpVcs> shelfTmpVcsList = new ShelfTmpVcsDao().getShelfTmpVcsByTmpUUID(dbEnv, tmpUuid, vcsUuid);
+            ShelfTmp tmp = new ShelfTmpDao().getShelfTmp(dbEnv, tmpUuid);
+            List prodStatus = new ArrayList<>();
+            prodStatus.add(StatusUtils.getDelete(dbEnv).getStatusCode());//Delete
+            prodStatus.add(StatusUtils.getTerminate(dbEnv).getStatusCode());//Terminate
+            prodStatus.add(StatusUtils.getCancel(dbEnv).getStatusCode());//Cancel
+            prodStatus.add(StatusUtils.getExpired(dbEnv).getStatusCode());//Expire
+            prodStatus.add(StatusUtils.getNotUse(dbEnv).getStatusCode());//Not use
+            prodStatus.add(StatusUtils.getPause(dbEnv).getStatusCode());//Pause
+            Date sysdate = new Date();
             if (reqStatus.equalsIgnoreCase("approve")) {
                 if (shelfTmpVcsList.isEmpty()) {
-                    Date sysdate = new Date();
-                    if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
-                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
-                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusActive)), "", true);
+                    if (tmpVcs.getStatus() == statusWaitToDelete) {
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusDelete);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusDelete, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusDelete)), "", true);
 //                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusActive);
-                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
-                    } else {
-                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
-                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusInActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusInActive)), "", true);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusDelete);
+                    } else if (tmpVcs.getStatus() == statusWaitToApprove) {
+//                        Date sysdate = new Date();
+                        if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+                            new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
+                            new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusActive)), "", true);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusActive);
+                            new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
+                        } else {
+                            new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
+                            new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusInActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusInActive)), "", true);
 //                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
-                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusInActive);
+                            new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusInActive);
+                        }
                     }
                     /*
                     new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
@@ -602,48 +805,100 @@ public class TemplateV1Controller {
                     new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
                      */
                 } else {
-                    for (ShelfTmpVcs vcs : shelfTmpVcsList) {
-                        if (vcs.getStatus() == statusInActive) {
-                            if (header.getBoolean("confirm")) {
-                                new ShelfTmpDao().updateStatus(dbEnv, vcs.getTmpUuid().getUuid(), statusCancel);
-                                new ShelfTmpVcsDao().updateStatus(dbEnv, vcs.getUuid(), statusCancel, StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusCancel)), "", false);
+                    if (tmpVcs.getStatus() == statusWaitToDelete) {
+                        for (ShelfTmpVcs vcs : tmp.getShelfTmpVcsList()) {
+                            new ShelfTmpDao().updateStatus(dbEnv, vcs.getTmpUuid().getUuid(), statusDelete);
+                            new ShelfTmpVcsDao().updateStatus(dbEnv, vcs.getUuid(), statusDelete, StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusDelete)), header.has("remark") ? header.getString("remark") : null, false);
 //                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
-                                new ShelfTmpDetailDao().updateStatus(dbEnv, vcs.getUuid(), statusCancel);
-
-                                new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
-                                new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusInActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusInActive)), "", true);
-//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
-                                new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusInActive);
-                            } else {
-                                return new JSONObject().put("status", false).put("description", "This template have some version status is inactive");
-                            }
-                        } else if (vcs.getStatus() == statusActive) {
-                            List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByTmpUuidAndTmpVerNotCancelAndDelete(dbEnv, tmpUuid, tmpVcs.getVersion());
-                            if (!prodVcsList.isEmpty()) {
-                                return new JSONObject().put("status", false).put("description", "Some product used this template. Please pause product and repeat.");
-                            } else {
-                                Date sysdate = new Date();
-                                if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
-                                    new ShelfTmpDao().updateStatus(dbEnv, vcs.getTmpUuid().getUuid(), statusExpired);
-                                    new ShelfTmpVcsDao().updateStatus(dbEnv, vcs.getUuid(), statusExpired, StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusExpired)), "", false);
+                            new ShelfTmpDetailDao().updateStatus(dbEnv, vcs.getUuid(), statusDelete);
+                        }
+                    } else if (tmpVcs.getStatus() == statusWaitToApprove) {
+//                        boolean isIncreaseVer = false;
+                        Integer vcsStatus = statusActive;
+                        for (ShelfTmpVcs vcs : shelfTmpVcsList) {
+                            if (vcs.getStatus() == statusActive) {
+                                if (header.getBoolean("confirm")) {
+                                    List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByNotProductStatusTmpUuidAndTmpVer(dbEnv, tmpUuid, vcs.getVersion(), prodStatus);
+                                    if (!prodVcsList.isEmpty()) {
+                                        return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0044")).put("productUsed", true).put("confirmmsg", "");
+                                    } else {
+//                                    if (header.getBoolean("confirm")) {
+                                        if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+                                            //change expire to not use
+                                            new ShelfTmpDao().updateStatus(dbEnv, vcs.getTmpUuid().getUuid(), statusNotUse);
+                                            new ShelfTmpVcsDao().updateStatus(dbEnv, vcs.getUuid(), statusNotUse, StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusNotUse)), "", false);
 //                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
-                                    new ShelfTmpDetailDao().updateStatus(dbEnv, vcs.getUuid(), statusExpired);
+                                            new ShelfTmpDetailDao().updateStatus(dbEnv, vcs.getUuid(), statusNotUse);
 
-                                    new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
-                                    new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusActive)), "", true);
-//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
-                                    new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
+//                                            new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
+//                                            new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusActive)), "", (!isIncreaseVer));
+////                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
+//                                            new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
+                                            vcsStatus = statusActive;
+//                                        isIncreaseVer = true;
+                                        } else {
+//                                            new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
+//                                            new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusInActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusInActive)), "", (!isIncreaseVer));
+////                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
+//                                            new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusInActive);
+                                            vcsStatus = statusInActive;
+//                                        isIncreaseVer = true;
+                                        }
+//                                    }
+                                    }
                                 } else {
-                                    new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
-                                    new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusInActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusInActive)), "", true);
-//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
-                                    new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusInActive);
+                                    if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+                                        return new JSONObject().put("status", false).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0045")).put("description", "");
+                                    } else {
+                                        vcsStatus = statusInActive;
+                                    }
+                                }
+                            } else if (vcs.getStatus() == statusInActive) {
+                                if (header.getBoolean("confirm")) {
+                                    if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+//                                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
+//                                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusActive)), "", (!isIncreaseVer));
+//                                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
+                                        vcsStatus = statusActive;
+//                                        isIncreaseVer = true;
+                                    } else {
+//                                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
+//                                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusInActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusInActive)), "", (!isIncreaseVer));
+//                                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusInActive);
+
+                                        new ShelfTmpDao().updateStatus(dbEnv, vcs.getTmpUuid().getUuid(), statusCancel);
+                                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcs.getUuid(), statusCancel, StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusCancel)), "", false);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
+                                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcs.getUuid(), statusCancel);
+                                        vcsStatus = statusInActive;
+//                                        isIncreaseVer = true;
+                                    }
+                                } else {
+                                    if (tmpVcs.getEffectiveDate().compareTo(sysdate) > 0) {
+                                        return new JSONObject().put("status", false).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0046")).put("description", "");
+                                    } else {
+                                        vcsStatus = statusActive;
+                                    }
                                 }
                             }
                         }
+                        if (header.has("bank") && header.getBoolean("bank")) {
+                            JSONArray attrArr = new JSONArray(tmpVcs.getAttr1());
+                            for (int aai = 0; aai < attrArr.length(); aai++) {
+                                JSONObject obj = attrArr.getJSONObject(aai);
+                                if (obj.has("termsNCondition")) {
+                                    obj.put("dataset", header.has("dataset") ? header.getString("dataset") : "");
+                                }
+                            }
+                            tmpVcs.setAttr1(attrArr.toString());
+                        }
+                        new ShelfTmpVcsDao().updateVcs(dbEnv, tmpVcs);
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, vcsStatus);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, vcsStatus, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(vcsStatus)), "", true);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, vcsStatus);
                     }
                 }
-                return new JSONObject().put("status", true).put("description", "");
+                return new JSONObject().put("status", true).put("description", "").put("confirmmsg", "");
             } else if (reqStatus.equalsIgnoreCase("sendapprove")) {
                 if (shelfTmpVcsList.isEmpty()) {
                     new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusWaitToApprove);
@@ -655,37 +910,139 @@ public class TemplateV1Controller {
                         if (vcs.getStatus() == statusWaitToApprove) {
 //                            vcs.setStatus(statusCancel);
 //                            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusCancel)));
-                            return new JSONObject().put("status", false).put("description", "This template have some version status is wait to approve");
+                            return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0047")).put("confirmmsg", "");
+                        } else if (vcs.getStatus() == statusActive) {
+                            if (!header.getBoolean("confirm")) {
+//                                new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusWaitToApprove);
+//                                new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)), "", false);
+////                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
+//                                new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove);
+//                            } else {
+                                if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+                                    return new JSONObject().put("status", false).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0048")).put("description", "");
+                                }
+                            }
                         } else if (vcs.getStatus() == statusInActive) {
-                            if (header.getBoolean("confirm")) {
-                                new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusWaitToApprove);
-                                new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)), "", false);
-//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
-                                new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove);
-                            } else {
-                                return new JSONObject().put("status", false).put("description", "This template have some version status is inactive");
+                            if (!header.getBoolean("confirm")) {
+//                                new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusWaitToApprove);
+//                                new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)), "", false);
+////                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
+//                                new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove);
+//                            } else {
+                                if (tmpVcs.getEffectiveDate().compareTo(sysdate) > 0) {
+                                    return new JSONObject().put("status", false).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0049")).put("description", "");
+                                }
                             }
                         }
                     }
+                    if (tmpVcs.getStatus() == statusInprogress) {
+//                            if (header.getBoolean("confirm")) {
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusWaitToApprove);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)), "", false);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusWaitToApprove);
+//                            }
+                    }
                 }
-                return new JSONObject().put("status", true).put("description", "");
-            } else if (reqStatus.equalsIgnoreCase("reject")) {
-                new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusReject);
-                new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusReject, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusReject)), header.getString("remark"), false);
+                return new JSONObject().put("status", true).put("description", "").put("confirmmsg", "");
+            } else if (reqStatus.equalsIgnoreCase("delete")) {
+                if (shelfTmpVcsList.isEmpty()) {
+                    new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusDelete);
+                    new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusDelete, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusDelete)), "", true);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusActive);
+                    new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusDelete);
+                    /*
+                    new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusActive);
+                    new ShelfTmpVcsDao().updateStatus(dbEnv, vcsUuid, statusActive, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusActive)), "", true);
+//                    new ShelfTmpAttDao().updateStatus(dbEnv, attUuid, statusActive);
+                    new ShelfTmpDetailDao().updateStatus(dbEnv, vcsUuid, statusActive);
+                     */
+                } else {
+                    if (tmp.getStatus() == statusWaitToDelete) {
+                        if (header.getBoolean("confirm")) {
+                            for (ShelfTmpVcs vcs : shelfTmpVcsList) {
+                                new ShelfTmpDao().updateStatus(dbEnv, vcs.getTmpUuid().getUuid(), statusDelete);
+                                new ShelfTmpVcsDao().updateStatus(dbEnv, vcs.getUuid(), statusDelete, StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusDelete)), "", false);
 //                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
-                new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusReject);
-                return new JSONObject().put("status", true).put("description", "");
+                                new ShelfTmpDetailDao().updateStatus(dbEnv, vcs.getUuid(), statusDelete);
+                            }
+                        } else {
+                            return new JSONObject().put("status", false).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0050")).put("description", "");
+                        }
+                    } else {
+                        return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0051")).put("confirmmsg", "");
+                    }
+                }
+                return new JSONObject().put("status", true).put("description", "").put("confirmmsg", "");
+            } else if (reqStatus.equalsIgnoreCase("senddelete")) {
+                List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByNotProductStatusTmpUuidAndTmpVer(dbEnv, tmpUuid, tmpVcs.getVersion(), prodStatus);
+                if (!prodVcsList.isEmpty()) {
+                    return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0052")).put("productUsed", true).put("confirmmsg", "");
+                }
+                if (shelfTmpVcsList.isEmpty()) {
+                    if (tmpVcs.getStatus() == statusInprogress) {
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusDelete);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusDelete, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusDelete)), "", false);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusDelete);
+                    } else {
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusWaitToDelete);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusWaitToDelete, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusWaitToDelete)), "", false);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusWaitToDelete);
+                    }
+                } else {
+//                        for (ShelfTmpVcs vcs : shelfTmpVcsList) {
+                    if (tmpVcs.getStatus() == statusWaitToDelete) {
+//                            vcs.setStatus(statusCancel);
+//                            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusCancel)));
+                        return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0053")).put("confirmmsg", "");
+                    } else if (tmpVcs.getStatus() == statusWaitToApprove) {
+//                            vcs.setStatus(statusCancel);
+//                            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusCancel)));
+                        return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0054")).put("confirmmsg", "");
+                    } else if (tmpVcs.getStatus() == statusInprogress) {
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusDelete);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusDelete, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusDelete)), "", false);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusCancel);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusDelete);
+                    } else {
+                        new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusWaitToDelete);
+                        new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusWaitToDelete, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusWaitToDelete)), "", false);
+//                            new ShelfTmpAttDao().updateStatus(dbEnv, vcs.get, statusInActive);
+                        new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusWaitToDelete);
+                    }
+//                        }
+                }
+                return new JSONObject().put("status", true).put("description", "").put("confirmmsg", "");
+            } else if (reqStatus.equalsIgnoreCase("reject")) {
+                if (tmpVcs.getStatus() == statusWaitToDelete) {
+                    String states[] = tmpVcs.getState().split("/");
+                    StatusUtils.Status st = null;
+                    if (states.length - 2 >= 0) {
+                        st = StatusUtils.getStatusByCode(dbEnv, states[states.length - 2]);
+                    } else {
+                        st = StatusUtils.getStatusByCode(dbEnv, states[states.length - 1]);
+                    }
+                    new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), st.getStatusCode());
+                    new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), st.getStatusCode(), StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(st.getStatusCode())), header.has("remark") ? header.getString("remark") : null, false);
+                    new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), st.getStatusCode());
+                } else if (tmpVcs.getStatus() == statusWaitToApprove) {
+                    new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusReject);
+                    new ShelfTmpVcsDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusReject, StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusReject)), header.has("remark") ? header.getString("remark") : null, false);
+                    new ShelfTmpDetailDao().updateStatus(dbEnv, tmpVcs.getUuid(), statusReject);
+                }
+                return new JSONObject().put("status", true).put("description", "").put("confirmmsg", "");
             } else {
 
                 logger.info("## ERROR : state to action is not define");
-                return new JSONObject().put("status", false).put("description", "state to action is not define");
+                return new JSONObject().put("status", false).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0055")).put("confirmmsg", "");
             }
-        } catch (NumberFormatException | JSONException | NullPointerException e) {
+        } catch (NumberFormatException | JSONException | NullPointerException | HibernateException | SQLException e) {
 //            logger.info("## ERROR saveOrUpdate");
 //            e.printStackTrace();
-            logger.error("" + e);
-            e.printStackTrace();
-            return new JSONObject().put("status", false).put("description", "" + e);
+            logger.info(e.getMessage());
+            return new JSONObject().put("status", false).put("description", "" + e).put("confirmmsg", "");
         }
     }
 
@@ -706,9 +1063,9 @@ public class TemplateV1Controller {
                 jsonArr.put(jsonObj);
 
             }
-        } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | NumberFormatException | HibernateException e) {
+            logger.info(e.getMessage());
+            //e.printStackTrace();
         }
         return jsonArr;
     }
@@ -716,7 +1073,7 @@ public class TemplateV1Controller {
     /* Update Or Create - start */
     private JSONObject saveOrUpdate(String dbEnv, JSONObject reqValue, String sysAction, int vscStatus) {
         HttpStatus httpStatus = HttpStatus.OK;
-        JSONObject returnVal = new JSONObject().put("status", HttpStatus.OK).put("description", "");
+        JSONObject returnVal = new JSONObject().put("status", httpStatus.value()).put("description", "").put("confirmmsg", "");
         JSONObject saveTmpObj = new JSONObject();
         JSONObject saveVcsObj = new JSONObject();
         JSONObject saveAttObj;
@@ -724,8 +1081,7 @@ public class TemplateV1Controller {
 
         boolean flag = true;
         String errorMsg = "";
-        Session session = null;
-        try {
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
 
             JSONObject userInfo = reqValue.getJSONObject("userInfo");
             JSONObject companyInfo = userInfo.getJSONObject("company");
@@ -744,6 +1100,7 @@ public class TemplateV1Controller {
             String vcsUuid = header.getString("vcsUuid").isEmpty() ? getUUID() : header.getString("vcsUuid");
             String action = header.getString("action");
             Date effectiveDate = convert2Date(header.getString("effectiveDate"));
+            Date curdate = new Date();
 
             ShelfTmpVcs oldVcs = new ShelfTmpVcs();
 
@@ -757,19 +1114,15 @@ public class TemplateV1Controller {
                 oldVcs = new ShelfTmpVcsDao().getListByUuid(dbEnv, vcsUuid);
             }
             /* Action to approve */
-            if (action.equalsIgnoreCase("sendapprove") || action.equalsIgnoreCase("approve") || action.equalsIgnoreCase("reject")) {
+            if (action.equalsIgnoreCase("sendapprove") || action.equalsIgnoreCase("approve") || action.equalsIgnoreCase("reject") || action.equalsIgnoreCase("senddelete") || action.equalsIgnoreCase("delete")) {
 //                ShelfTmpDetail shelfTmpDetail = new ShelfTmpDetailDao().getAttrByVcsUuid(dbEnv, vcsUuid);
                 JSONObject getUpdateStatus = setStatusTemplate(dbEnv, action, reqValue, "");
 
                 if (!getUpdateStatus.getBoolean("status")) {
-                    returnVal.put("status", httpStatus.value()).put("description", getUpdateStatus.getString("description"));
-                } else {
-
+                    returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", getUpdateStatus.getString("description")).put("confirmmsg", getUpdateStatus.getString("confirmmsg"));
                 }
                 return returnVal;
             }
-
-            session = getSessionMaster(dbEnv).openSession();
             /* create new template or update value in template */
             if ((sysAction.equals("newTemplate") || sysAction.equals("update")) && action.equalsIgnoreCase("save")) {
                 logger.info(actionStr + " Template ");
@@ -784,14 +1137,14 @@ public class TemplateV1Controller {
                 } else if (actionStr.equals("update")) {
                     List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByTmpUuidAndTmpVer(dbEnv, tmpUuid, oldVcs.getVersion());
                     if (!prodVcsList.isEmpty()) {
-                        return new JSONObject().put("status", false).put("description", "Some product used this template. Please pause product and repeat.");
+                        return new JSONObject().put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0056")).put("productUsed", true).put("confirmmsg", "");
                     }
-                    tmp = updateShelfTmp(oldVcs, tmpName, vscStatus, userName);
+                    tmp = updateShelfTmp(oldVcs, tmpName, oldVcs.getStatus(), userName);
                     saveTmpObj = new ShelfTmpDao().updateTmp(session, tmp);
                 }
 
                 if (!saveTmpObj.getBoolean("status")) {
-                    errorMsg = "Table ShelfTmp can't " + actionStr + " " + saveTmpObj.getString("description");
+                    errorMsg = StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0058") + actionStr + " " + saveTmpObj.getString("description");
                     flag = false;
                 }
             }
@@ -803,13 +1156,47 @@ public class TemplateV1Controller {
                     if (sysAction.equals("newVersion")) {
                         vcsUuid = getUUID();
                     }
+                    JSONObject retChkNewVer = checkCreateNewVersion(dbEnv, tmpUuid, effectiveDate, curdate, vcsUuid);
+                    if (retChkNewVer.getInt("status") != httpStatus.OK.value()) {
+                        if (!header.getBoolean("confirm")) {
+                            return retChkNewVer;
+                        }
+                    }
                     vcs = createShelfTmpVcs(vcsUuid, tmpUuid, effectiveDate, vscStatus, userName);
                     saveVcsObj = new ShelfTmpVcsDao().saveVcs(session, vcs);
                     tmp.setCurrentVcsUuid(vcsUuid);
                     new ShelfTmpDao().updateTmp(session, tmp);
                 } else if (actionStr.equals("update")) {
-                    vcs = updateShelfTmpVcs(oldVcs, effectiveDate, vscStatus, userName);
-                    saveVcsObj = new ShelfTmpVcsDao().updateVcs(session, vcs);
+                    Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+                    List<ShelfTmpVcs> listInprogress = new ShelfTmpVcsDao().getListByTmpUuidAndStatus(dbEnv, tmpUuid, statusInprogress, vcsUuid);
+                    if (listInprogress.size() > 0) {
+                        return new JSONObject().put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0057")).put("confirmmsg", "");
+                    } else {
+                        if (sysAction.equals("newVersion")) {
+                            vcsUuid = getUUID();
+                            JSONObject retChkNewVer = checkCreateNewVersion(dbEnv, tmpUuid, effectiveDate, curdate, vcsUuid);
+                            if (retChkNewVer.getInt("status") != httpStatus.OK.value()) {
+                                if (!header.getBoolean("confirm")) {
+                                    return retChkNewVer;
+                                }
+                            }
+                            vcs = createShelfTmpVcs(vcsUuid, tmpUuid, effectiveDate, vscStatus, userName);
+                            saveVcsObj = new ShelfTmpVcsDao().saveVcs(session, vcs);
+                            tmp = updateShelfTmp(oldVcs, tmpName, oldVcs.getStatus(), userName);
+                            tmp.setCurrentVcsUuid(vcsUuid);
+                            new ShelfTmpDao().updateTmp(session, tmp);
+
+                        } else {
+                            JSONObject retChkNewVer = checkCreateNewVersion(dbEnv, tmpUuid, effectiveDate, curdate, vcsUuid);
+                            if (retChkNewVer.getInt("status") != httpStatus.OK.value()) {
+                                if (!header.getBoolean("confirm")) {
+                                    return retChkNewVer;
+                                }
+                            }
+                            vcs = updateShelfTmpVcs(oldVcs, effectiveDate, vscStatus, userName);
+                            saveVcsObj = new ShelfTmpVcsDao().updateVcs(session, vcs);
+                        }
+                    }
                 }
 
                 /* ตรวจสอบ การ บันทึก Version ลงฐานข้อมูล */
@@ -845,7 +1232,7 @@ public class TemplateV1Controller {
                                 saveAttObj = new ShelfTmpAttDao().saveShelfTmpAttach(session, att);
 
                                 if (!saveAttObj.getBoolean("status")) {
-                                    errorMsg = "Table ShelfTmpAtt can't " + actionStr + " " + saveAttObj.getString("description");
+                                    errorMsg = StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0059") + actionStr + " " + saveAttObj.getString("description");
                                     flag = false;
                                 }
 
@@ -872,7 +1259,7 @@ public class TemplateV1Controller {
                                 saveAttObj = new ShelfTmpAttDao().updateShelfTmpAttach(session, att);
 
                                 if (!saveAttObj.getBoolean("status")) {
-                                    errorMsg = "Table ShelfTmpAtt can't " + actionStr + " " + saveAttObj.getString("description");
+                                    errorMsg = StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0059") + actionStr + " " + saveAttObj.getString("description");
                                     flag = false;
                                 }
 
@@ -900,21 +1287,16 @@ public class TemplateV1Controller {
             }
             session.close();
             if (!flag) {
-                return new JSONObject().put("status", 500).put("description", errorMsg);
+                return new JSONObject().put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", errorMsg).put("confirmmsg", "");
             } else {
                 return returnVal;
             }
 
-        } catch (HibernateException | JSONException | NullPointerException e) {
+        } catch (HibernateException | JSONException | NullPointerException | ParseException e) {
 //            logger.info("## ERROR saveOrUpdate");
-//            e.printStackTrace();
-            logger.error("" + e);
+            logger.info(e.getMessage());
             e.printStackTrace();
-            return returnVal.put("status", 500).put("description", "" + e);
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            return returnVal.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", "" + e);
         }
     }
 
@@ -953,23 +1335,25 @@ public class TemplateV1Controller {
         vcs.setEffectiveDate(effectiveDate);
         vcs.setVersion(0);
         vcs.setStatus(vscStatus);
+        vcs.setState(ValidUtils.null2NoData(vscStatus));
         vcs.setCreateAt(new java.util.Date());
         vcs.setCreateBy(userName);
         return vcs;
     }
 
     private ShelfTmpVcs updateShelfTmpVcs(ShelfTmpVcs oldVcs, Date effectiveDate, int vscStatus, String userName) {
-        ShelfTmpVcs vcs = new ShelfTmpVcs();
-        vcs.setUuid(oldVcs.getUuid());
-        vcs.setTmpUuid(new ShelfTmp(oldVcs.getTmpUuid().getUuid()));
-        vcs.setEffectiveDate(effectiveDate);
-        vcs.setVersion(oldVcs.getVersion());
-        vcs.setStatus(vscStatus);
-        vcs.setCreateAt(oldVcs.getCreateAt());
-        vcs.setCreateBy(oldVcs.getCreateBy());
-        vcs.setUpdateAt(new java.util.Date());
-        vcs.setUpdateBy(userName);
-        return vcs;
+//        ShelfTmpVcs vcs = new ShelfTmpVcs();
+//        oldVcs.setUuid(oldVcs.getUuid());
+//        vcs.setTmpUuid(new ShelfTmp(oldVcs.getTmpUuid().getUuid()));
+        oldVcs.setEffectiveDate(effectiveDate);
+//        vcs.setVersion(oldVcs.getVersion());
+        oldVcs.setStatus(vscStatus);
+        oldVcs.setState(StatusUtils.setStatus(oldVcs.getState(), ValidUtils.null2NoData(vscStatus)));
+//        vcs.setCreateAt(oldVcs.getCreateAt());
+//        vcs.setCreateBy(oldVcs.getCreateBy());
+        oldVcs.setUpdateAt(new java.util.Date());
+        oldVcs.setUpdateBy(userName);
+        return oldVcs;
     }
 
     private ShelfTmpAttach createShelfTmpAtt(String tmpUuid, String defaultStr, JSONObject data, Date effectiveDate, int vscStatus, String userName) {
@@ -1037,49 +1421,52 @@ public class TemplateV1Controller {
         Integer statusCancel = StatusUtils.getCancel(dbEnv).getStatusCode();
         Integer statusExpired = StatusUtils.getExpired(dbEnv).getStatusCode();
         List<ShelfTmpVcs> tmpVcsList = tmpVcsDao.getShelfTmpVcsByTmpUUID(dbEnv, tmpUuid, tmpVcsUuid);
-        Session session = HibernateUtil.getSessionMaster(dbEnv).openSession();
-        if (tmpVcsList.isEmpty()) {
-            vcs.setStatus(statusActive);
-            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusActive)));
-            tmpVcsDao.updateVcs(session, vcs);
-        } else {
-            for (ShelfTmpVcs tmpVcs : tmpVcsList) {
-                if (tmpVcs.getStatus() == statusInActive) {
-                    tmpVcs.setStatus(statusCancel);
-                    tmpVcs.setState(StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusCancel)));
-                    vcs.setStatus(statusInActive);
-                    vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusInActive)));
-                    tmpVcsDao.updateVcs(session, tmpVcs);
-                    tmpVcsDao.updateVcs(session, vcs);
-                } else if (tmpVcs.getStatus() == statusActive) {
-                    List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByTmpUuidAndTmpVer(dbEnv, tmpUuid, vcs.getVersion());
-                    if (prodVcsList.size() > 0) {
-                        retVal = false;
-                        break;
-                    } else {
-                        Date sysdate = new Date();
-                        if (vcs.getEffectiveDate().compareTo(sysdate) == 0) {
-                            tmpVcs.setStatus(statusExpired);
-                            tmpVcs.setState(StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusExpired)));
-                            vcs.setStatus(statusActive);
-                            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusActive)));
-                            tmpVcsDao.updateVcs(session, tmpVcs);
-                            tmpVcsDao.updateVcs(session, vcs);
+        try (Session session = HibernateUtil.getSessionMaster(dbEnv).openSession()) {
+            if (tmpVcsList.isEmpty()) {
+                vcs.setStatus(statusActive);
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusActive)));
+                tmpVcsDao.updateVcs(session, vcs);
+            } else {
+                for (ShelfTmpVcs tmpVcs : tmpVcsList) {
+                    if (tmpVcs.getStatus() == statusInActive) {
+                        tmpVcs.setStatus(statusCancel);
+                        tmpVcs.setState(StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusCancel)));
+                        vcs.setStatus(statusInActive);
+                        vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusInActive)));
+                        tmpVcsDao.updateVcs(session, tmpVcs);
+                        tmpVcsDao.updateVcs(session, vcs);
+                    } else if (tmpVcs.getStatus() == statusActive) {
+                        List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByTmpUuidAndTmpVer(dbEnv, tmpUuid, vcs.getVersion());
+                        if (prodVcsList.size() > 0) {
+                            retVal = false;
+                            break;
                         } else {
-                            vcs.setStatus(statusInActive);
-                            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusInActive)));
-                            tmpVcsDao.updateVcs(session, vcs);
+                            Date sysdate = new Date();
+                            if (vcs.getEffectiveDate().compareTo(sysdate) == 0) {
+                                tmpVcs.setStatus(statusExpired);
+                                tmpVcs.setState(StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusExpired)));
+                                vcs.setStatus(statusActive);
+                                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusActive)));
+                                tmpVcsDao.updateVcs(session, tmpVcs);
+                                tmpVcsDao.updateVcs(session, vcs);
+                            } else {
+                                vcs.setStatus(statusInActive);
+                                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusInActive)));
+                                tmpVcsDao.updateVcs(session, vcs);
+                            }
                         }
                     }
                 }
             }
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
         }
         return retVal;
     }
 
-    private boolean checkTmpVcsStatus(String dbEnv, String tmpVcsUuid, Integer status) {
+    private boolean checkTmpVcsStatus(String dbEnv, String tmpUuid, Integer status, String tmpVcsUuid) {
         boolean retVal = true;
-        List<ShelfTmpVcs> tmpVcsList = new ShelfTmpVcsDao().getListByTmpUuidAndStatus(dbEnv, tmpVcsUuid, status);
+        List<ShelfTmpVcs> tmpVcsList = new ShelfTmpVcsDao().getListByTmpUuidAndStatus(dbEnv, tmpUuid, status, tmpVcsUuid);
         if (!tmpVcsList.isEmpty()) {
             retVal = false;
         }
@@ -1096,23 +1483,200 @@ public class TemplateV1Controller {
         Integer statusExpired = StatusUtils.getExpired(dbEnv).getStatusCode();
         Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
         List<ShelfTmpVcs> tmpVcsList = tmpVcsDao.getShelfTmpVcsByTmpUUID(dbEnv, tmpUuid, tmpVcsUuid);
-        Session session = HibernateUtil.getSessionMaster(dbEnv).openSession();
-        if (tmpVcsList.isEmpty()) {
-            vcs.setStatus(statusWaitToApprove);
-            vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)));
-            tmpVcsDao.updateVcs(session, vcs);
-        } else {
-            for (ShelfTmpVcs tmpVcs : tmpVcsList) {
-                if (tmpVcs.getStatus() == statusWaitToApprove) {
-                    tmpVcs.setStatus(statusCancel);
-                    tmpVcs.setState(StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusCancel)));
-                    vcs.setStatus(statusWaitToApprove);
-                    vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)));
-                    tmpVcsDao.updateVcs(session, tmpVcs);
-                    tmpVcsDao.updateVcs(session, vcs);
+        try (Session session = HibernateUtil.getSessionMaster(dbEnv).openSession()) {
+            if (tmpVcsList.isEmpty()) {
+                vcs.setStatus(statusWaitToApprove);
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)));
+                tmpVcsDao.updateVcs(session, vcs);
+            } else {
+                for (ShelfTmpVcs tmpVcs : tmpVcsList) {
+                    if (tmpVcs.getStatus() == statusWaitToApprove) {
+                        tmpVcs.setStatus(statusCancel);
+                        tmpVcs.setState(StatusUtils.setStatus(tmpVcs.getState(), ValidUtils.null2NoData(statusCancel)));
+                        vcs.setStatus(statusWaitToApprove);
+                        vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(statusWaitToApprove)));
+                        tmpVcsDao.updateVcs(session, tmpVcs);
+                        tmpVcsDao.updateVcs(session, vcs);
+                    }
                 }
             }
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
         }
         return retVal;
+    }
+
+    private JSONObject checkCreateNewVersion(String dbEnv, String tmpUuid, Date effectiveDate, Date curDate, String tmpVcsUuid) throws ParseException {
+        JSONObject ret = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("confirmmsg", "");
+        Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+        Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
+        Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+        Integer statusPause = StatusUtils.getPause(dbEnv).getStatusCode();
+        Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
+        Integer statusWaitToDelete = StatusUtils.getWaittoDelete(dbEnv).getStatusCode();
+        List statusProductIn = new ArrayList();
+        statusProductIn.add(statusActive);
+        statusProductIn.add(statusInactive);
+        statusProductIn.add(statusInprogress);
+        statusProductIn.add(statusPause);
+        statusProductIn.add(statusWaitToApprove);
+        statusProductIn.add(statusWaitToDelete);
+        List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByTmpUuid(dbEnv, tmpUuid, statusProductIn);
+        if (prodVcsList.size() > 0) {
+            for (ShelfProductVcs prodVcs : prodVcsList) {
+                if (prodVcs.getStatus() == statusActive && DateUtils.isSameDay(effectiveDate, curDate)) {
+                    return ret.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0060"));
+                }
+            }
+        } else {
+            List<ShelfTmpVcs> listActive = new ShelfTmpVcsDao().getListByTmpUuidAndStatus(dbEnv, tmpUuid, statusActive, tmpVcsUuid);
+            if (DateUtils.isSameDay(effectiveDate, curDate) && listActive.size() > 0) {
+                return ret.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0061"));
+            }
+            effectiveDate = ValidUtils.str2Date(th.co.d1.digitallending.util.DateUtils.getDisplayEnDate(effectiveDate, "yyyy-MM-dd"), "yyyy-MM-dd");
+            curDate = ValidUtils.str2Date(th.co.d1.digitallending.util.DateUtils.getDisplayEnDate(curDate, "yyyy-MM-dd"), "yyyy-MM-dd");
+            List<ShelfTmpVcs> listInActive = new ShelfTmpVcsDao().getListByTmpUuidAndStatus(dbEnv, tmpUuid, statusInactive, tmpVcsUuid);
+            if (effectiveDate.compareTo(curDate) > 0 && listInActive.size() > 0) {
+                return ret.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0062"));
+            }
+        }
+        return ret;
+    }
+
+    private JSONObject checkTemplate(String dbEnv, JSONObject data) {
+        JSONObject ret = new JSONObject().put("status", HttpStatus.OK.value()).put("description", "").put("confirmmsg", "").put("data", new JSONObject()).put("api", true);
+        Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+        Integer statusInActive = StatusUtils.getInActive(dbEnv).getStatusCode();
+//        Integer statusCancel = StatusUtils.getCancel(dbEnv).getStatusCode();
+//        Integer statusExpired = StatusUtils.getExpired(dbEnv).getStatusCode();
+        Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
+//        Integer statusReject = StatusUtils.getReject(dbEnv).getStatusCode();
+//        Integer statusWaitToDelete = StatusUtils.getWaittoDelete(dbEnv).getStatusCode();
+//        Integer statusDelete = StatusUtils.getDelete(dbEnv).getStatusCode();
+//        Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+//        Integer statusNotUse = StatusUtils.getNotUse(dbEnv).getStatusCode();
+
+//        JSONObject data = reqValue.getJSONObject("data");
+//        JSONObject header = data.getJSONObject("header");
+//        String tmpUuid = header.getString("tmpUuid");
+        String vcsUuid = data.getString("vcsUuid");
+        ShelfTmpVcs tmpVcs = new ShelfTmpVcsDao().getListByUuid(dbEnv, vcsUuid);
+        boolean hasTermCond = false;
+        for (ShelfTmpDetail tmpDtl : tmpVcs.getShelfTmpDetailList()) {
+            if (null != tmpDtl.getCompUuid() && "004".equalsIgnoreCase(tmpDtl.getCompUuid().getCompCode()) && tmpDtl.getFlagEnable()) {
+                hasTermCond = true;
+            }
+        }
+        if (!hasTermCond) {
+            JSONObject retData = new JSONObject();
+            retData.put("tmpUuid", tmpVcs.getTmpUuid().getUuid());
+            retData.put("tmpName", tmpVcs.getTmpUuid().getTmpName());
+            retData.put("headerText", "Terms & Condition");
+            JSONArray attrArr = new JSONArray(tmpVcs.getAttr1());
+            for (int aai = 0; aai < attrArr.length(); aai++) {
+                JSONObject obj = attrArr.getJSONObject(aai);
+                if (obj.has("termsNCondition")) {
+                    retData.put("activeDate", obj.getString("activeDate"));
+                    retData.put("verTermcond", obj.getString("version"));
+                    retData.put("content", obj.getString("termsNCondition"));
+                }
+            }
+            ret.put("data", retData).put("api", false);
+            return ret;
+        }
+        List<ShelfTmpVcs> shelfTmpVcsList = new ShelfTmpVcsDao().getShelfTmpVcsByTmpUUID(dbEnv, tmpVcs.getTmpUuid().getUuid(), vcsUuid);
+//        List prodStatus = new ArrayList<>();
+//        prodStatus.add(StatusUtils.getDelete(dbEnv).getStatusCode());//Delete
+//        prodStatus.add(StatusUtils.getTerminate(dbEnv).getStatusCode());//Terminate
+//        prodStatus.add(StatusUtils.getCancel(dbEnv).getStatusCode());//Cancel
+//        prodStatus.add(StatusUtils.getExpired(dbEnv).getStatusCode());//Expire
+//        prodStatus.add(StatusUtils.getNotUse(dbEnv).getStatusCode());//Not use
+//        prodStatus.add(StatusUtils.getPause(dbEnv).getStatusCode());//Pause
+        Date sysdate = new Date();
+        if (shelfTmpVcsList.isEmpty()) {
+            if (tmpVcs.getStatus() != statusWaitToApprove) {
+                return ret.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0063")).put("confirmmsg", "");
+//                if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+//                    new ShelfTmpDao().updateStatus(dbEnv, tmpVcs.getTmpUuid().getUuid(), statusActive);
+//                } else {
+//                    new ShelfTmpDao().updateStatus(dbEnv, tmpUuid, statusInActive);
+//                }
+            } else {
+                JSONObject retData = new JSONObject();
+                retData.put("tmpUuid", tmpVcs.getTmpUuid().getUuid());
+                retData.put("tmpName", tmpVcs.getTmpUuid().getTmpName());
+                retData.put("headerText", "Terms & Condition");
+                JSONArray attrArr = new JSONArray(tmpVcs.getAttr1());
+                for (int aai = 0; aai < attrArr.length(); aai++) {
+                    JSONObject obj = attrArr.getJSONObject(aai);
+                    if (obj.has("termsNCondition")) {
+                        retData.put("activeDate", obj.getString("activeDate"));
+                        retData.put("verTermcond", obj.getString("version"));
+                        retData.put("content", obj.getString("termsNCondition"));
+                    }
+                }
+                ret.put("data", retData);
+            }
+        } else {
+            if (tmpVcs.getStatus() == statusWaitToApprove) {
+                Integer vcsStatus = statusActive;
+                for (ShelfTmpVcs vcs : shelfTmpVcsList) {
+                    JSONObject retData = new JSONObject();
+                    retData.put("tmpUuid", vcs.getTmpUuid().getUuid());
+                    retData.put("tmpName", vcs.getTmpUuid().getTmpName());
+                    retData.put("headerText", "Terms & Condition");
+                    JSONArray attrArr = new JSONArray(vcs.getAttr1());
+                    for (int aai = 0; aai < attrArr.length(); aai++) {
+                        JSONObject obj = attrArr.getJSONObject(aai);
+                        if (obj.has("termsNCondition")) {
+                            retData.put("activeDate", obj.getString("activeDate"));
+                            retData.put("verTermcond", obj.getString("version"));
+                            retData.put("content", obj.getString("termsNCondition"));
+                        }
+                    }
+                    if (vcs.getStatus() == statusActive) {
+//                        if (header.getBoolean("confirm")) {
+//                            List<ShelfProductVcs> prodVcsList = new ShelfProductVcsDao().getProductByNotProductStatusTmpUuidAndTmpVer(dbEnv, vcs.getTmpUuid().getUuid(), vcs.getVersion(), prodStatus);
+//                            if (!prodVcsList.isEmpty()) {
+//                                return ret.put("status", false).put("description", "Some product used this template. Please pause product that used this template first").put("productUsed", true).put("confirmmsg", "");
+//                            } else {
+//                                if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+//                                    //change expire to not use
+//                                    vcsStatus = statusActive;
+//                                } else {
+//                                    vcsStatus = statusInActive;
+//                                }
+//                            }
+//                        } else {
+                        if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+                            return ret.put("status", HttpStatus.OK.value()).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0064")).put("description", "").put("data", retData);
+                        }
+//                            else {
+//                                vcsStatus = statusInActive;
+//                            }
+//                        }
+                    } else if (vcs.getStatus() == statusInActive) {
+//                        if (header.getBoolean("confirm")) {
+//                            if (tmpVcs.getEffectiveDate().compareTo(sysdate) <= 0) {
+//                                vcsStatus = statusActive;
+//                            } else {
+//                                vcsStatus = statusInActive;
+//                            }
+//                        } else {
+                        if (tmpVcs.getEffectiveDate().compareTo(sysdate) > 0) {
+                            return ret.put("status", HttpStatus.OK.value()).put("confirmmsg", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0065")).put("description", "").put("data", retData);
+                        }
+//                            else {
+//                                vcsStatus = statusActive;
+//                            }
+//                        }
+                    }
+                    ret.put("data", retData);
+                }
+            } else {
+                return ret.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value()).put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0066")).put("confirmmsg", "");
+            }
+        }
+        return ret;
     }
 }

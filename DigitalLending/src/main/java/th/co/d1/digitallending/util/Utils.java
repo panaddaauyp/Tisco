@@ -7,26 +7,18 @@ package th.co.d1.digitallending.util;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-//import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-//import net.sf.jasperreports.engine.JREmptyDataSource;
-//import net.sf.jasperreports.engine.JRException;
-//import net.sf.jasperreports.engine.JasperExportManager;
-//import net.sf.jasperreports.engine.JasperFillManager;
-//import net.sf.jasperreports.engine.JasperPrint;
 import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.http.HttpHeaders;
@@ -37,7 +29,7 @@ public class Utils {
 
 //    public static String OS = System.getProperty("os.name").toLowerCase();
 //    static final Pattern pattern = Pattern.compile("([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})");
-    final static Logger logger = Logger.getLogger(Utils.class);
+    final static Logger logger = Logger.getLogger(Utils.class.getName());
 
     public static String escapeSql(String str) {
         String returnVal = "";
@@ -58,8 +50,8 @@ public class Utils {
             Date parseDate = f.parse(str_date);
             return parseDate.getTime();
         } catch (ParseException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return 0000000;
         }
     }
@@ -69,20 +61,20 @@ public class Utils {
         return uuid.toString();
     }
 
-    public static String getEncodePwd(String pwd) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("MD5");//SHA
-        md.update(pwd.getBytes());
-
-        byte byteData[] = md.digest();
-
-        //convert the byte to hex format method 1
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < byteData.length; i++) {
-            sb.append(Integer.toString((byteData[i] & 0xff) + 0x100, 16).substring(1));
-        }
-//        Base64.encodeBase64(byteData);
-        return sb.toString();
-    }
+//    public static String getEncodePwd(String pwd) throws NoSuchAlgorithmException {
+//        MessageDigest md = MessageDigest.getInstance("MD5");//SHA
+//        md.update(pwd.getBytes());
+//
+//        byte byteData[] = md.digest();
+//
+//        //convert the byte to hex format method 1
+//        StringBuilder sb = new StringBuilder();
+//        for (int i = 0; i < byteData.length; i++) {
+//            sb.append(Integer.toString((byteData[i] & 0xff) + 0x100, 16).substring(1));
+//        }
+////        Base64.encodeBase64(byteData);
+//        return sb.toString();
+//    }
 
     public static boolean isUUID(String uuid) {
         if (uuid == null) {
@@ -125,7 +117,7 @@ public class Utils {
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
             date = formatter.parse(strDate);
         } catch (ParseException ex) {
-            logger.error(ex.getMessage());
+            logger.info(ex.getMessage());
         }
         return date;
     }
@@ -142,8 +134,8 @@ public class Utils {
                         valB = b.getLong(kName);
                     } catch (JSONException e) {
                         //do something
-                        logger.error("" + e);
-                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                        //e.printStackTrace();
                     }
                     if (minToMax) {
                         return valA.compareTo(valB);
@@ -153,8 +145,8 @@ public class Utils {
                 }
             });
         } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
         }
         return jsonList;
     }
@@ -176,8 +168,8 @@ public class Utils {
                         }
                     } catch (JSONException e) {
                         //do something
-                        logger.error("" + e);
-                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                        //e.printStackTrace();
                     }
                     if (minToMax) {
                         return valA.compareTo(valB);
@@ -187,8 +179,8 @@ public class Utils {
                 }
             });
         } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
         }
         return jsonList;
     }
@@ -204,8 +196,8 @@ public class Utils {
                         valB = b.getString(kName);
                     } catch (JSONException e) {
                         //do something
-                        logger.error("" + e);
-                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                        //e.printStackTrace();
                     }
                     if (minToMax) {
                         return valA.compareTo(valB);
@@ -215,8 +207,8 @@ public class Utils {
                 }
             });
         } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
         }
         return jsonList;
     }
@@ -287,9 +279,9 @@ public class Utils {
             encodedfile = new String(Base64.getEncoder().encode(bytes), "UTF-8");
             fileInputStreamReader.close();
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         } finally {
         }
         return encodedfile;
@@ -301,11 +293,11 @@ public class Utils {
         return (new ResponseEntity<>(returnValue.replaceAll("\\\\", ""), headers, httpStatus));
     }
 
-    public static String validateSubStateFromHeader(HttpServletRequest req) {
-        String subState = HibernateUtil.defaultDB;
-        if (req != null && req.getHeader("sub_state") != null) {
-            subState = req.getHeader("sub_state");
-        }
-        return subState;
-    }
+//    public static String validateSubStateFromHeader(HttpServletRequest req) {
+//        String subState = HibernateUtil.defaultDB;
+//        if (req != null && req.getHeader("sub_state") != null) {
+//            subState = req.getHeader("sub_state");
+//        }
+//        return subState;
+//    }
 }

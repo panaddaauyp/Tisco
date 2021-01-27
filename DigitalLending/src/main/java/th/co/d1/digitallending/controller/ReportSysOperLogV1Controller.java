@@ -5,11 +5,17 @@
  */
 package th.co.d1.digitallending.controller;
 
-import java.util.Date;
+import com.tfglog.LogSingleton;
+import com.tfglog.Log_decorator;
+import com.tfglog.TfgLogger;
+import java.io.UnsupportedEncodingException;
+import java.sql.SQLException;
+import java.text.ParseException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
+import org.hibernate.HibernateException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,13 +23,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import org.springframework.web.bind.annotation.ResponseBody;
 import th.co.d1.digitallending.dao.SysOperLogDao;
 import static th.co.d1.digitallending.util.ApplicationStartup.headersJSON;
-import th.co.d1.digitallending.util.DateUtils;
-import th.co.d1.digitallending.util.Utils;
+import th.co.d1.digitallending.util.StatusUtils;
 
 /**
  *
@@ -38,40 +44,46 @@ import th.co.d1.digitallending.util.Utils;
 @RequestMapping("/shelf/report/v1")
 public class ReportSysOperLogV1Controller {
 
-    Logger logger = Logger.getLogger(ReportSysOperLogV1Controller.class);
+    Logger logger = Logger.getLogger(ReportSysOperLogV1Controller.class.getName());
+    TfgLogger log = LogSingleton.getTfgLogger();
 
+    @Log_decorator
     @RequestMapping(value = "/search/reconcile", method = POST)
     @ResponseBody
-    public ResponseEntity<?> getListReconcile(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> getListReconcile(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /shelf/report/v1/search/reconcile");
+        log.info("POST : /shelf/report/v1/search/reconcile");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            JSONObject datas = new JSONObject(payload);
+            JSONObject datas = new JSONObject(reqBody);
             SysOperLogDao dao = new SysOperLogDao();
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
                 String prodCode = json.has("prodCode") ? json.getString("prodCode") : "";                 //productCode
                 String startDate = json.has("startDate") ? json.getString("startDate") : "";    //BusinessDate
                 String endDate = json.has("endDate") ? json.getString("endDate") : "";
-                returnVal.put("datas", dao.getReconcileReport(Utils.validateSubStateFromHeader(request), prodCode, startDate, endDate));
+                returnVal.put("datas", dao.getReconcileReport(subState, prodCode, startDate, endDate));
             }
-        } catch (JSONException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | SQLException | ParseException | UnsupportedEncodingException | HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            log.error(e.getMessage());
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/transaction/preview", method = POST)
     @ResponseBody
-    public ResponseEntity<?> getListTransactionPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> getListTransactionPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /shelf/report/v1/transaction/preview");
+        log.info("POST : /shelf/report/v1/transaction/preview");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
 //            JSONArray jsonArr = new JSONArray();
-            JSONObject datas = new JSONObject(payload);
+            JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
                 String prodCode = json.has("prodCode") ? json.getString("prodCode") : "";                 //attr1
@@ -86,25 +98,27 @@ public class ReportSysOperLogV1Controller {
                 Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
                 String state = json.has("state") ? json.getString("state") : "";
                 String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-                returnVal.put("datas", new SysOperLogDao().getTransactionReport(Utils.validateSubStateFromHeader(request), prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId));
+                returnVal.put("datas", new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId));
             }
-        } catch (JSONException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/inquiry/search", method = POST)
     @ResponseBody
-    public ResponseEntity<?> getListInquiryPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> getListInquiryPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /shelf/report/v1/inquiry/search");
+        log.info("POST : /shelf/report/v1/inquiry/search");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-//            JSONArray jsonArr = new JSONArray();
-            JSONObject datas = new JSONObject(payload);
+            JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
                 String compName = (json.has("compName") ? json.getString("compName") : "");
@@ -114,10 +128,6 @@ public class ReportSysOperLogV1Controller {
                 String refNo = (json.has("refNo") ? json.getString("refNo") : "");
                 String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
                 String txnId = (json.has("txnId") ? json.getString("txnId") : "");
-//                Date startDate = ValidUtils.str2Date(json.has("startTxnDate") ? json.getString("startTxnDate") : "");   //startTxnTime
-//                Date endTxnDate = ValidUtils.str2Date(json.has("endTxnDate") ? json.getString("endTxnDate") : "");      //endTxnTime
-//                Date startPayDate = ValidUtils.str2Date(json.has("startPayDate") ? json.getString("startPayDate") : "");
-//                Date endPayDate = ValidUtils.str2Date(json.has("endPayDate") ? json.getString("endPayDate") : "");
                 Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
                 String state = (json.has("state") ? json.getString("state") : "");
                 String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";    //create_at
@@ -127,37 +137,122 @@ public class ReportSysOperLogV1Controller {
                 String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";    //create_at
                 String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
                 String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-                //                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");                 //attr1
-                //                Date startDate = ValidUtils.str2Date(json.has("startDate") ? json.getString("startDate") : "");    //create_at
-                //                Date endDate = ValidUtils.str2Date(json.has("endDate") ? json.getString("endDate") : "");
-                
-                returnVal.put("datas", new SysOperLogDao().getInquiryTransaction(Utils.validateSubStateFromHeader(request), compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
+                returnVal.put("datas", new SysOperLogDao().getInquiryTransaction(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
             }
-        } catch (JSONException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/transaction/error", method = POST)
     @ResponseBody
-    public ResponseEntity<?> getListTransactionError(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> getListTransactionError(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /shelf/report/v1/transaction/error");
+        log.info("POST : /shelf/report/v1/transaction/error");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
 //            JSONArray jsonArr = new JSONArray();
-            JSONObject datas = new JSONObject(payload);
+            JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject data = datas.getJSONObject("data");
 //                JSONObject data = new JSONObject();
-                returnVal.put("datas", new SysOperLogDao().getErrorLogList(Utils.validateSubStateFromHeader(request), data));
+                returnVal.put("datas", new SysOperLogDao().getErrorLogList(subState, data));
             }
-        } catch (JSONException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | SQLException | ParseException | HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/transfer/search", method = POST)
+    @ResponseBody
+    public ResponseEntity<?> getListTransferPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("POST : /shelf/report/v1/transfer/search");
+        log.info("POST : /shelf/report/v1/transfer/search");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+//            JSONArray jsonArr = new JSONArray();
+            JSONObject datas = new JSONObject(reqBody);
+            if (datas.has("data")) {
+                JSONObject json = datas.getJSONObject("data");
+                String compCode = (json.has("compCode") ? json.getString("compCode") : "");
+                String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
+                String ucid = (json.has("ucid") ? json.getString("ucid") : ""); //attr1
+                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
+                String refNo = (json.has("refNo") ? json.getString("refNo") : "");
+                String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
+                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
+                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
+                String state = (json.has("state") ? json.getString("state") : "");
+                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";    //create_at
+                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
+                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";    //create_at
+                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
+                String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";    //create_at
+                String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
+                String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
+                String traceNo = (json.has("traceNo") ? json.getString("traceNo") : "");
+                String minAmount = (json.has("minAmount") ? json.getString("minAmount") : "");
+                String maxAmount = (json.has("maxAmount") ? json.getString("maxAmount") : "");
+                Integer prospect = StatusUtils.getProspect(subState).getStatusCode();
+                returnVal.put("datas", new SysOperLogDao().getTransferTransaction(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
+                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect));
+            }
+        } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+//            e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    
+    @Log_decorator
+    @RequestMapping(value = "/history/search", method = POST)
+    @ResponseBody
+    public ResponseEntity<?> getListHistoryPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("POST : /shelf/report/v1/history/search");
+        log.info("POST : /shelf/report/v1/history/search");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONObject datas = new JSONObject(reqBody);
+            if (datas.has("data")) {
+                JSONObject json = datas.getJSONObject("data");
+                String compName = (json.has("compName") ? json.getString("compName") : "");
+                String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
+                String ucid = (json.has("ucid") ? json.getString("ucid") : ""); //attr1
+                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
+                String refNo = (json.has("refNo") ? json.getString("refNo") : "");
+                String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
+                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
+                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
+                String state = (json.has("state") ? json.getString("state") : "");
+                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";    //create_at
+                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
+                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";    //create_at
+                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
+                String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";    //create_at
+                String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
+                String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
+                returnVal.put("datas", new SysOperLogDao().getDataHistory(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
+            }
+        } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }

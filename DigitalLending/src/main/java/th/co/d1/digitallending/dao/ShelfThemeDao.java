@@ -8,7 +8,7 @@ package th.co.d1.digitallending.dao;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -23,6 +23,7 @@ import th.co.d1.digitallending.entity.ShelfProductVcs;
 import th.co.d1.digitallending.entity.ShelfTheme;
 import th.co.d1.digitallending.util.DateUtils;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
+import th.co.d1.digitallending.util.StatusUtils;
 import th.co.d1.digitallending.util.ValidUtils;
 
 /**
@@ -36,27 +37,34 @@ import th.co.d1.digitallending.util.ValidUtils;
  */
 public class ShelfThemeDao {
 
-    private Session session;
+    Logger logger = Logger.getLogger(ShelfThemeDao.class.getName());
 
-    Logger logger = Logger.getLogger(ShelfThemeDao.class);
-
-    public JSONArray getListShelfTmpTheme(String dbEnv, boolean onlyActive) {
+    public JSONArray getListShelfTmpTheme(String dbEnv, boolean onlyActive, boolean prodUsage) {
         List<ShelfTheme> list = new ArrayList<>();
         List<ShelfProductVcs> shelfProductVcsList = new ArrayList<>();
         JSONArray jsonArr = new JSONArray();
-        Transaction trans;
-        try {
-            int statusActive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
-            int statusInactive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inactive").getLookupcode());
-            int statusCancel = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "cancel").getLookupcode());
-            int statusDelete = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "delete").getLookupcode());
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+            Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
+            Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+            Integer statusPause = StatusUtils.getPause(dbEnv).getStatusCode();
+            Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
+            Integer statusWaitToDelete = StatusUtils.getWaittoDelete(dbEnv).getStatusCode();
+            Integer statusTerminate = StatusUtils.getTerminate(dbEnv).getStatusCode();
+            Integer statusDelete = StatusUtils.getDelete(dbEnv).getStatusCode();
+            Integer statusExpire = StatusUtils.getExpired(dbEnv).getStatusCode();
+            Integer statusCancel = StatusUtils.getCancel(dbEnv).getStatusCode();
+            List statusProductIn = new ArrayList();
+            statusProductIn.add(statusActive);
+            statusProductIn.add(statusInactive);
+            statusProductIn.add(statusInprogress);
+            statusProductIn.add(statusPause);
+            statusProductIn.add(statusWaitToApprove);
+            statusProductIn.add(statusWaitToDelete);
             List statusActiveInactive = new ArrayList();
             statusActiveInactive.add(statusActive);
             statusActiveInactive.add(statusInactive);
-            List statusNotIn = new ArrayList();
-            statusNotIn.add(statusCancel);
-            statusNotIn.add(statusDelete);
-            session = getSessionMaster(dbEnv).openSession();
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTheme.class);
             if (onlyActive) {
@@ -75,40 +83,45 @@ public class ShelfThemeDao {
                         .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
                         .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
                         .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "")
-                        .put("createAt", ValidUtils.null2NoData(DateUtils.getDisplayEnDate(theme.getCreateAt(), "dd/MM/yyyy HH:mm")))
-                        .put("updateAt", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(theme.getUpdateAt(), "dd/MM/yyyy HH:mm"), DateUtils.getDisplayEnDate(theme.getCreateAt(), "dd/MM/yyyy HH:mm")))
+                        .put("createAt", ValidUtils.null2NoData(DateUtils.getDisplayEnDate(theme.getCreateAt(), "yyyy-MM-dd HH:mm")))
+                        .put("updateAt", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(theme.getUpdateAt(), "yyyy-MM-dd HH:mm"), DateUtils.getDisplayEnDate(theme.getCreateAt(), "yyyy-MM-dd HH:mm")))
                         .put("data", (theme.getValue() == null ? "" : theme.getValue()))
                         .put("createBy", ValidUtils.null2NoData(theme.getCreateBy()))
                         .put("updateBy", ValidUtils.null2NoData(theme.getUpdateBy()));
-                criteria = session.createCriteria(ShelfProductVcs.class);
-                criteria.createAlias("themeUuid", "theme");
-                criteria.add(Restrictions.eq("theme.uuid", theme.getUuid()));
-                criteria.add(Restrictions.isNull("compUuid"));
-                criteria.add(Restrictions.not(Restrictions.in("status", statusNotIn)));
-                shelfProductVcsList = criteria.list();
-                JSONArray prodArr = new JSONArray();
-                for (ShelfProductVcs prodVcs : shelfProductVcsList) {
-                    JSONObject prodObj = new JSONObject();
-                    memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(prodVcs.getStatus()));
-                    prodObj.put("code", prodVcs.getProdUuid().getProdCode())
-                            .put("name", prodVcs.getProdUuid().getProdName())
-                            .put("verProd", prodVcs.getVerProd())
-                            .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
-                            .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
-                            .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "");
-                    prodArr.put(prodObj);
+                if (prodUsage) {
+                    criteria = session.createCriteria(ShelfProductVcs.class);
+                    criteria.createAlias("themeUuid", "theme");
+                    criteria.add(Restrictions.eq("theme.uuid", theme.getUuid()));
+                    criteria.add(Restrictions.isNull("compUuid"));
+                    criteria.add(Restrictions.in("status", statusProductIn));
+                    shelfProductVcsList = criteria.list();
+                    JSONArray prodArr = new JSONArray();
+                    for (ShelfProductVcs prodVcs : shelfProductVcsList) {
+                        if (prodVcs.getStatus() == statusTerminate || prodVcs.getStatus() == statusDelete || prodVcs.getStatus() == statusExpire) {
+                            prodArr = new JSONArray();
+                            break;
+                        }
+                        JSONObject prodObj = new JSONObject();
+                        memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(prodVcs.getStatus()));
+                        prodObj.put("code", prodVcs.getProdUuid().getProdCode())
+                                .put("name", prodVcs.getProdUuid().getProdName())
+                                .put("verProd", (prodVcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(prodVcs.getVerProd())))
+                                .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
+                                .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
+                                .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "");
+                        prodArr.put(prodObj);
+                    }
+                    jsonObj.put("prodUsage", prodArr);
                 }
-                jsonObj.put("prodUsage", prodArr);
                 jsonArr.put(jsonObj);
             }
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return jsonArr;
     }
@@ -116,29 +129,23 @@ public class ShelfThemeDao {
     public JSONObject saveShelfTmpTheme(String dbEnv, ShelfTheme theme) {
         JSONObject resp = new JSONObject();
         Transaction trans = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             if (null == theme.getCreateAt()) {
                 theme.setCreateAt(new Date());
             }
             session.save(theme);
             trans.commit();
-            session.close();
             resp.put("status", true);
             resp.put("theme", theme);
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
             resp.put("status", false);
             resp.put("description", "" + e);
-        } finally {
-            if (null != session) {
-                session.close();
-            }
         }
         return resp;
     }
@@ -146,22 +153,17 @@ public class ShelfThemeDao {
     public ShelfTheme getShelfTmpTheme(String dbEnv, String uuid) {
         ShelfTheme theme = new ShelfTheme();
         Transaction trans = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             theme = (ShelfTheme) session.get(ShelfTheme.class, uuid);
             trans.commit();
-            session.close();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            throw e;
         }
         return theme;
     }
@@ -169,29 +171,23 @@ public class ShelfThemeDao {
     public JSONObject updateShelfTmpTheme(String dbEnv, ShelfTheme theme) {
         JSONObject resp = new JSONObject();
         Transaction trans = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             if (null == theme.getUpdateAt()) {
                 theme.setUpdateAt(new Date());
             }
             session.update(theme);
             trans.commit();
-            session.close();
             resp.put("status", true);
             resp.put("theme", theme);
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
             resp.put("status", false);
             resp.put("description", "" + e);
-        } finally {
-            if (null != session) {
-                session.close();
-            }
         }
         return resp;
     }
@@ -200,14 +196,24 @@ public class ShelfThemeDao {
         List<ShelfTheme> themes = new ArrayList<>();
         List<ShelfProductVcs> shelfProductVcsList = new ArrayList<>();
         JSONArray jsonArr = new JSONArray();
-        Transaction trans;
-        int statusActive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
-        int statusInactive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inactive").getLookupcode());
-        List statusActiveInactive = new ArrayList();
-        statusActiveInactive.add(statusActive);
-        statusActiveInactive.add(statusInactive);
-        try {
-            session = getSessionMaster(dbEnv).openSession();
+        Transaction trans = null;
+        Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+        Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
+        Integer statusInprogress = StatusUtils.getInprogress(dbEnv).getStatusCode();
+        Integer statusPause = StatusUtils.getPause(dbEnv).getStatusCode();
+        Integer statusWaitToApprove = StatusUtils.getWaittoApprove(dbEnv).getStatusCode();
+        Integer statusWaitToDelete = StatusUtils.getWaittoDelete(dbEnv).getStatusCode();
+        Integer statusTerminate = StatusUtils.getTerminate(dbEnv).getStatusCode();
+        Integer statusDelete = StatusUtils.getDelete(dbEnv).getStatusCode();
+        Integer statusExpire = StatusUtils.getExpired(dbEnv).getStatusCode();
+        List statusProductIn = new ArrayList();
+        statusProductIn.add(statusActive);
+        statusProductIn.add(statusInactive);
+        statusProductIn.add(statusInprogress);
+        statusProductIn.add(statusPause);
+        statusProductIn.add(statusWaitToApprove);
+        statusProductIn.add(statusWaitToDelete);
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTheme.class);
             if (null != themeName && !"".equals(themeName)) {
@@ -230,6 +236,7 @@ public class ShelfThemeDao {
             } else if (null != updateFrom && null == updateTo) {
                 criteria.add(Restrictions.gt("createAt", DateUtils.utilDateToSqlDate(updateFrom)));
             }
+            criteria.add(Restrictions.not(Restrictions.eq("status", 400)));
             themes = criteria.list();
             for (ShelfTheme theme : themes) {
                 Memlookup memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(theme.getStatus()));
@@ -240,8 +247,8 @@ public class ShelfThemeDao {
                         .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
                         .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
                         .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "")
-                        .put("createAt", ValidUtils.null2NoData(DateUtils.getDisplayEnDate(theme.getCreateAt(), "dd/MM/yyyy HH:mm")))
-                        .put("updateAt", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(theme.getUpdateAt(), "dd/MM/yyyy HH:mm"), DateUtils.getDisplayEnDate(theme.getCreateAt(), "dd/MM/yyyy HH:mm")))
+                        .put("createAt", ValidUtils.null2NoData(DateUtils.getDisplayEnDate(theme.getCreateAt(), "yyyy-MM-dd HH:mm")))
+                        .put("updateAt", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(theme.getUpdateAt(), "yyyy-MM-dd HH:mm"), DateUtils.getDisplayEnDate(theme.getCreateAt(), "yyyy-MM-dd HH:mm")))
                         .put("data", (theme.getValue() == null ? "" : theme.getValue()))
                         .put("createBy", ValidUtils.null2NoData(theme.getCreateBy()))
                         .put("updateBy", ValidUtils.null2NoData(theme.getUpdateBy()));
@@ -249,15 +256,19 @@ public class ShelfThemeDao {
                 criteria.createAlias("themeUuid", "theme");
                 criteria.add(Restrictions.eq("theme.uuid", theme.getUuid()));
                 criteria.add(Restrictions.isNull("compUuid"));
-                criteria.add(Restrictions.in("status", statusActiveInactive));
+                criteria.add(Restrictions.in("status", statusProductIn));
                 shelfProductVcsList = criteria.list();
                 JSONArray prodArr = new JSONArray();
                 for (ShelfProductVcs prodVcs : shelfProductVcsList) {
+                    if (prodVcs.getStatus() == statusTerminate || prodVcs.getStatus() == statusDelete || prodVcs.getStatus() == statusExpire) {
+                        prodArr = new JSONArray();
+                        break;
+                    }
                     JSONObject prodObj = new JSONObject();
                     memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(prodVcs.getStatus()));
                     prodObj.put("code", prodVcs.getProdUuid().getProdCode())
                             .put("name", prodVcs.getProdUuid().getProdName())
-                            .put("verProd", prodVcs.getVerProd())
+                            .put("verProd", (prodVcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(prodVcs.getVerProd())))
                             .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
                             .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
                             .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "");
@@ -266,15 +277,13 @@ public class ShelfThemeDao {
                 jsonObj.put("prodUsage", prodArr);
                 jsonArr.put(jsonObj);
             }
-//            trans.commit();
-//            session.close();
+            trans.commit();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (null != trans) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return jsonArr;
     }
@@ -282,13 +291,12 @@ public class ShelfThemeDao {
     public List<ShelfTheme> getShelfThemeByNameStatusActiveAndInActive(String dbEnv, String themeName) {
         List<ShelfTheme> list = new ArrayList<>();
         Transaction trans = null;
-        try {
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             int statusActive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "active").getLookupcode());
             int statusInactive = Integer.parseInt(new SysLookupDao().getMemLookupByValue(dbEnv, "inactive").getLookupcode());
             List status = new ArrayList();
             status.add(statusActive);
             status.add(statusInactive);
-            session = getSessionMaster(dbEnv).openSession();
             trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(ShelfTheme.class);
             if (null != themeName && !"".equals(themeName)) {
@@ -297,16 +305,13 @@ public class ShelfThemeDao {
             criteria.add(Restrictions.in("status", status));
             criteria.addOrder(Order.asc("themeName"));
             list = criteria.list();
+            trans.commit();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
             if (null != trans) {
                 trans.rollback();
             }
-        } finally {
-            if (null != session) {
-                session.close();
-            }
+            throw e;
         }
         return list;
     }

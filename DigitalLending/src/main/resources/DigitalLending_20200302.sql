@@ -28,7 +28,7 @@ WITH (
 TABLESPACE pg_default;;
 
 ALTER TABLE public.t_shelf_menu
-    OWNER to digitalshelf;;
+    OWNER to postgres;;
 
 
 CREATE TABLE public.t_shelf_role
@@ -61,7 +61,7 @@ WITH (
 TABLESPACE pg_default;;
 
 ALTER TABLE public.t_shelf_role
-    OWNER to digitalshelf;;
+    OWNER to postgres;;
 	
 	
 
@@ -102,7 +102,7 @@ WITH (
 TABLESPACE pg_default;;
 
 ALTER TABLE public.t_shelf_role_menu
-    OWNER to digitalshelf;;
+    OWNER to postgres;;
 	
 
 insert into t_sys_lookup (uuid,lookup_code,lookup_name_th,lookup_name_en,lookup_type,lookup_value,status,description,create_by,flag_edit,flag_create)
@@ -164,7 +164,7 @@ CREATE TABLE public.t_sys_oper_log
     payment_date timestamp(0) without time zone,
     state_code character varying(128) COLLATE pg_catalog."default",
     prod_channel character varying(128) COLLATE pg_catalog."default",
-    step_data character varying(128) COLLATE pg_catalog."default",
+    step_data text COLLATE pg_catalog."default",
     case_id character varying(128) COLLATE pg_catalog."default",
     group_product character varying(128) COLLATE pg_catalog."default",
     txn_no character varying(128) COLLATE pg_catalog."default",
@@ -194,7 +194,7 @@ WITH (
 TABLESPACE pg_default;;
 
 ALTER TABLE public.t_sys_oper_log
-    OWNER to digitalshelf;;
+    OWNER to postgres;;
 
 COMMENT ON COLUMN public.t_sys_oper_log.uuid
     IS 'Logging ID';;

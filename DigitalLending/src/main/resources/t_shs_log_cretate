@@ -1,0 +1,35 @@
+-- Table: public.t_sys_log
+
+-- DROP TABLE public.t_sys_log;
+
+CREATE TABLE public.t_sys_log
+(
+    uuid character varying(128) COLLATE pg_catalog."default" NOT NULL,
+    prod_code character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    case_id character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    group_product character varying(255) COLLATE pg_catalog."default",
+    state character varying(255) COLLATE pg_catalog."default",
+    attr1 text COLLATE pg_catalog."default",
+    attr2 text COLLATE pg_catalog."default",
+    attr3 text COLLATE pg_catalog."default",
+    attr4 text COLLATE pg_catalog."default",
+    attr5 text COLLATE pg_catalog."default",
+    attr6 text COLLATE pg_catalog."default",
+    attr7 text COLLATE pg_catalog."default",
+    attr8 text COLLATE pg_catalog."default",
+    attr9 text COLLATE pg_catalog."default",
+    attr10 text COLLATE pg_catalog."default",
+    status integer NOT NULL,
+    create_at timestamp(0) without time zone DEFAULT now(),
+    create_by character varying(100) COLLATE pg_catalog."default",
+    update_at timestamp without time zone,
+    update_by character varying(100) COLLATE pg_catalog."default",
+    CONSTRAINT t_sys_log_pkey PRIMARY KEY (uuid)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public.t_sys_log
+    OWNER to postgres;

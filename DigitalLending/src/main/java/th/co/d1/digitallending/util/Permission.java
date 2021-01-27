@@ -5,6 +5,7 @@
  */
 package th.co.d1.digitallending.util;
 
+import org.hibernate.HibernateException;
 import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import th.co.d1.digitallending.dao.SysRoleDao;
@@ -16,6 +17,7 @@ public class Permission {
         action = action.toLowerCase();
         JSONObject returnVal = new JSONObject().put("status", HttpStatus.UNAUTHORIZED).put("description", "User not have Permission");
         SysRoleDao dao = new SysRoleDao();
+        try{
         JSONObject permission = dao.getRoleByCode(dbEnv, roleCode);
         if (permission.has(flow)) {
             JSONObject flowData = permission.getJSONObject(flow);
@@ -24,6 +26,9 @@ public class Permission {
                     returnVal.put("status", HttpStatus.OK).put("description", "");
                 }
             }
+        }
+        }catch(NullPointerException | HibernateException e){
+            throw e;
         }
         return returnVal;
     }

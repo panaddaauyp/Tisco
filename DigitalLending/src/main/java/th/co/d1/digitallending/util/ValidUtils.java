@@ -10,11 +10,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 
 public class ValidUtils {
 
-    final static Logger logger = Logger.getLogger(ValidUtils.class);
+    final static Logger logger = Logger.getLogger(ValidUtils.class.getName());
 
     public static boolean isNumber(String input) {
         return input.matches("[-+]?\\d*\\.?\\d+");
@@ -78,7 +78,7 @@ public class ValidUtils {
             try {
                 date = df.parse(str);
             } catch (ParseException ex) {
-                logger.error(ex.getMessage());
+                logger.info(ex.getMessage());
 //                ex.printStackTrace();
             }
         }
@@ -99,8 +99,8 @@ public class ValidUtils {
         try {
             return new BigInteger(input);
         } catch (NumberFormatException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }
@@ -113,8 +113,8 @@ public class ValidUtils {
         try {
             return new BigDecimal(input);
         } catch (NumberFormatException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
             return null;
         }
     }

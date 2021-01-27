@@ -5,7 +5,7 @@
  */
 package th.co.d1.digitallending.dao;
 
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -26,69 +26,62 @@ import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
  */
 public class SysAuditLogDao {
 
-    private Session session;
-
-    Logger logger = Logger.getLogger(SysAuditLogDao.class);
+    Logger logger = Logger.getLogger(SysAuditLogDao.class.getName());
 
     public SysAuditLog getSysAuditLogByUUID(String dbEnv, String uuid) {
         SysAuditLog sysAuditLog = new SysAuditLog();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             sysAuditLog = (SysAuditLog) session.get(SysAuditLog.class, uuid);
             trans.commit();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return sysAuditLog;
     }
 
     public SysAuditLog saveSysAuditLog(String dbEnv, SysAuditLog sysAuditLog) {
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             session.save(sysAuditLog);
             trans.commit();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            return null;
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return sysAuditLog;
     }
 
     public SysAuditLog updateSysAuditLog(String dbEnv, SysAuditLog sysAuditLog) {
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             session.update(sysAuditLog);
             trans.commit();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            return null;
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return sysAuditLog;
     }
-    
+
     public SysAuditLog getSysAuditLogByLogName(String dbEnv, String logName) {
         SysAuditLog sysAuditLog = new SysAuditLog();
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            Transaction trans = session.beginTransaction();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
             Criteria criteria = session.createCriteria(SysAuditLog.class);
             criteria.add(Restrictions.eq("logName", logName));
             criteria.addOrder(Order.desc("createAt"));
@@ -96,14 +89,12 @@ public class SysAuditLogDao {
             sysAuditLog = (SysAuditLog) criteria.uniqueResult();
             trans.commit();
         } catch (HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-        } finally {
-            if (null != session) {
-                session.close();
+            if (trans != null) {
+                trans.rollback();
             }
+            logger.info(e.getMessage());
+            throw e;
         }
         return sysAuditLog;
     }
-
 }

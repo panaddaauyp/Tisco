@@ -9,12 +9,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import static th.co.d1.digitallending.dao.SysOperLogDao.logger;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
 import th.co.d1.digitallending.util.ValidUtils;
 
@@ -29,22 +26,18 @@ import th.co.d1.digitallending.util.ValidUtils;
  */
 public class UtilityDao {
 
-    private Session session;
-    Logger logger = Logger.getLogger(UtilityDao.class);
+    Logger logger = Logger.getLogger(UtilityDao.class.getName());
 
-    public String getCutOffProduct(String dbEnv, String prodId, Integer verProd) {
-        Connection con = null;
+    public String getCutOffProduct(String dbEnv, String prodId, Integer verProd) throws SQLException {
         String cutoff = "";
         PreparedStatement ps = null;
         ResultSet rs = null;
-        try {
-            session = getSessionMaster(dbEnv).openSession();
-            con = session.doReturningWork((Connection conn) -> conn);
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
             StringBuilder taskCategoryCmd = new StringBuilder();
             taskCategoryCmd.append("SELECT LK_CODE, LK_LABEL, LK_VALUE FROM T_SHELF_PRODUCT_DTL "
                     + "WHERE LK_CODE IN ('pcutOffTAllD','pcutOffTSpec') "
                     + "AND TRN_UUID IN (SELECT UUID FROM T_SHELF_PRODUCT_VCS WHERE PROD_UUID = ? AND VER_PROD = ?) ");
-            ps = con.prepareStatement(taskCategoryCmd.toString());
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(taskCategoryCmd.toString());
             ps.setString(1, prodId);
             ps.setInt(2, verProd);
             rs = ps.executeQuery();
@@ -61,22 +54,15 @@ public class UtilityDao {
             } else {
                 cutoff = pcutOffTSpec;
             }
-        } catch (SQLException | HibernateException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
         } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (ps != null) {
-                    ps.close();
-                }
-            } catch (NullPointerException | SQLException ex) {
-                logger.error("" + ex);
+            if (rs != null) {
+                rs.close();
             }
-            if (null != session) {
-                session.close();
+            if (ps != null) {
+                ps.close();
             }
         }
         return cutoff;

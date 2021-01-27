@@ -5,14 +5,24 @@
  */
 package th.co.d1.digitallending.controller;
 
+import com.tfglog.LogSingleton;
+import com.tfglog.Log_decorator;
+import com.tfglog.TfgLogger;
+import java.sql.SQLException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsFirst;
 import java.util.Date;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
+import org.hibernate.HibernateException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,7 +31,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
@@ -41,6 +53,9 @@ import static th.co.d1.digitallending.util.ApplicationStartup.headersJSON;
 import th.co.d1.digitallending.util.ConstainValue;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
 import th.co.d1.digitallending.util.LookupUtils;
+import th.co.d1.digitallending.util.ProductUtils;
+import th.co.d1.digitallending.util.StatusUtils;
+import th.co.d1.digitallending.util.TemplateUtils;
 import th.co.d1.digitallending.util.Utils;
 import th.co.d1.digitallending.util.ValidUtils;
 
@@ -51,7 +66,8 @@ import th.co.d1.digitallending.util.ValidUtils;
 @Controller
 public class UtilityController {
 
-    final static Logger logger = Logger.getLogger(UtilityController.class);
+    final static Logger logger = Logger.getLogger(UtilityController.class.getName());
+    TfgLogger log = LogSingleton.getTfgLogger();
 
     /*
     @RequestMapping(value = "/api/en_de_code", method = GET)
@@ -67,41 +83,49 @@ public class UtilityController {
                 return nCrypeDcrypt.deCodeValue(value);
             }
         } catch (Exception e) {
-            logger.error("" + e);
-            e.printStackTrace();
-//            Logger.getLogger(UtilityController.class.getName()).log(Level.SEVERE, null, e);
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+//            Logger.getLogger(UtilityController.class.getName().getName()).log(Level.SEVERE, null, e);
             return "error";
         }
         return "Sorry ,You don't have pemission";
     }
      */
+    @Log_decorator
     @RequestMapping(value = "/api/database", method = GET)
     @ResponseBody
-    public void getDatabaseConnect(HttpServletRequest request) {
+    public void getDatabaseConnect(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/database");
-        getSessionMaster(Utils.validateSubStateFromHeader(request));
+        log.info("GET : /api/database");
+        getSessionMaster(subState);
     }
 
+    @Log_decorator
     @RequestMapping(value = "/", method = GET)
     public String getLandingPage() {
         logger.info("GET : /");
+        log.info("GET : /");
         return "index";
     }
 
+    @Log_decorator
     @RequestMapping(value = "/App-HealthCheck", method = GET)
     public String getHealthCheck() {
         logger.info("GET : /App-HealthCheck");
+        log.info("GET : /App-HealthCheck");
         return "index";
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/question/{productUuid}", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getRandomQuestion(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String prodUuid) {
+    public ResponseEntity<?> getRandomQuestion(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String prodUuid, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/question/" + prodUuid);
+        log.info("GET : /api/question/" + prodUuid);
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
         try {
             ShelfProductDtlDao shelfProductDtlDao = new ShelfProductDtlDao();
-            List<ShelfProductDtl> shelfProductDtlList = shelfProductDtlDao.getShelfProductDtlByCompUuidAndProductUuid(Utils.validateSubStateFromHeader(request), "a34404a3-309e-4057-8f53-f386d026656b", prodUuid);
+            List<ShelfProductDtl> shelfProductDtlList = shelfProductDtlDao.getShelfProductDtlByCompUuidAndProductUuid(subState, "a34404a3-309e-4057-8f53-f386d026656b", prodUuid);
             JSONObject questionObject = new JSONObject();
             for (ShelfProductDtl shelfProductDtl : shelfProductDtlList) {
                 if (shelfProductDtl.getLkCode().equalsIgnoreCase("otpNumberQuestion")) {
@@ -128,10 +152,11 @@ public class UtilityController {
                 }
                 questionObject.put("g004", listQuestion);
             }
-        } catch (JSONException | NullPointerException e) {
+        } catch (JSONException | NullPointerException | HibernateException e) {
 //            e.printStackTrace();
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
@@ -176,17 +201,19 @@ public class UtilityController {
             String outputPath = "C://TISCO/PDF";
             JSONObject result = utils.generatePDFIncreaseLimitContract(parameter, outputPath);
         } catch (JSONException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }    
      */
+    @Log_decorator
     @RequestMapping(value = "/api/update/memory-database", method = PUT)
     @ResponseBody
     public ResponseEntity<?> updateMemoryDatabase(HttpServletRequest request) {
         logger.info("PUT : /api/update/memory-database");
+        log.info("PUT : /api/update/memory-database");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "");
         try {
             int ret = new ConstainValue().updateLookUp();
@@ -199,128 +226,161 @@ public class UtilityController {
             returnVal.put("status", ret == 1 ? 200 : 500)
                     .put("description", retMsg);
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/producttype", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductTypeList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductTypeList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/producttype");
+        log.info("GET : /api/producttype");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultProductType(Utils.validateSubStateFromHeader(request)));
+            returnVal.put("datas", new LookupUtils().getDefaultProductType(subState));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/productchannel", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductChannelList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductChannelList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/productchannel");
+        log.info("GET : /api/productchannel");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultProductType(Utils.validateSubStateFromHeader(request)));
+            returnVal.put("datas", new LookupUtils().getDefaultProductType(subState));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/prodgroup", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductGroupList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductGroupList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/prodgroup");
+        log.info("GET : /api/prodgroup");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultProductGroup(Utils.validateSubStateFromHeader(request)));
+            returnVal.put("datas", new LookupUtils().getDefaultProductGroup(subState));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/temp/list/approve", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplateApproveList(HttpServletRequest request) {
+    public ResponseEntity<?> getTemplateApproveList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/temp/list/approve");
+        log.info("GET : /api/temp/list/approve");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_TMP_APPROVE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_TMP_APPROVE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/temp/list/reject", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplateRejectList(HttpServletRequest request) {
+    public ResponseEntity<?> getTemplateRejectList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/temp/list/reject");
+        log.info("GET : /api/temp/list/reject");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_TMP_REJECT"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_TMP_REJECT"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/temp/list/delete", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplateDeleteList(HttpServletRequest request) {
+    public ResponseEntity<?> getTemplateDeleteList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/temp/list/delete");
+        log.info("GET : /api/temp/list/delete");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_TMP_DELETE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_TMP_DELETE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/temp/list/pause", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getTemplatePauseList(HttpServletRequest request) {
+    public ResponseEntity<?> getTemplatePauseList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/temp/list/pause");
+        log.info("GET : /api/temp/list/pause");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_TMP_PAUSE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_TMP_PAUSE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/product/list/approve", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductApproveList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductApproveList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/product/list/approve");
+        log.info("GET : /api/product/list/approve");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_PROD_APPROVE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_PROD_APPROVE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
@@ -329,72 +389,88 @@ public class UtilityController {
 
     @RequestMapping(value = "/api/product/list/reject", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductRejectList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductRejectList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/product/list/reject");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_PROD_REJECT"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_PROD_REJECT"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/product/list/delete", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductDeleteList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductDeleteList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/product/list/delete");
+        log.info("GET : /api/product/list/delete");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_PROD_DELETE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_PROD_DELETE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/product/list/pause", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductPauseList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductPauseList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/product/list/pause");
+        log.info("GET : /api/product/list/pause");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_PROD_PAUSE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_PROD_PAUSE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/product/list/terminate", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProductTerminateList(HttpServletRequest request) {
+    public ResponseEntity<?> getProductTerminateList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/product/list/terminate");
+        log.info("GET : /api/product/list/terminate");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(Utils.validateSubStateFromHeader(request), "DEF_PROD_TERMINATE"));
+            returnVal.put("datas", new LookupUtils().getDefaultLookupByGroupType(subState, "DEF_PROD_TERMINATE"));
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/report/list/product", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getListProductReport(HttpServletRequest request) {
+    public ResponseEntity<?> getListProductReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/report/list/product");
+        log.info("GET : /api/report/list/product");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray retProduct = new JSONArray();
-            List<ShelfProduct> listProductOnShelf = new ShelfProductDao().getListShelfProductOnShelf(Utils.validateSubStateFromHeader(request));
+            List<ShelfProduct> listProductOnShelf = new ShelfProductDao().getListShelfProductOnShelf(subState);
             listProductOnShelf.forEach((prod) -> {
                 JSONObject prodObj = new JSONObject();
                 prodObj.put("uuid", prod.getUuid())
@@ -403,18 +479,70 @@ public class UtilityController {
                 retProduct.put(prodObj);
             });
             returnVal.put("datas", retProduct);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/productonload/{urlname}", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListProductReportOnload(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String urlname,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/productonload/%s", urlname));
+        logger.info(String.format("GET : /api/report/list/productonload/%s", urlname));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONArray listProductOnload = new ShelfProductDao().getListProductOnload(subState, urlname);
+            returnVal.put("datas", listProductOnload);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/product/{department}", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListProductReportDep(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String department,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/product/%s", department));
+        logger.info(String.format("GET : /api/report/list/product/%s", department));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONArray listProductOnShelf = new ShelfProductDao().getListShelfProductOnShelfDep(subState, department);
+            returnVal.put("datas", listProductOnShelf);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+    @Log_decorator
     @RequestMapping(value = "/api/report/list/status", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getListStatusReport(HttpServletRequest request) {
+    public ResponseEntity<?> getListStatusReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/report/list/status");
+        log.info("GET : /api/report/list/status");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray retStatus = new JSONArray();
@@ -425,8 +553,8 @@ public class UtilityController {
             lkValues.add("PRO1016");
             lkValues.add("PRO1017");
             lkValues.add("PRO1018");
-            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(Utils.validateSubStateFromHeader(request), lkValues);
-//            List<Memlookup> listStatus = StatusUtils.getPass(Utils.validateSubStateFromHeader(request));
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
+//            List<Memlookup> listStatus = StatusUtils.getPass(subState);
             listStatus.forEach((status) -> {
                 JSONObject prodObj = new JSONObject();
                 prodObj.put("uuid", status.getUuid())
@@ -438,21 +566,56 @@ public class UtilityController {
             });
             returnVal.put("datas", retStatus);
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
-    @RequestMapping(value = "/api/report/list/state", method = GET)
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/statusall", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getListStateReport(HttpServletRequest request) {
-        logger.info("GET : /api/report/list/state");
+    public ResponseEntity<?> getListStatusAllReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /api/report/list/statusall");
+        log.info("GET : /api/report/list/statusall");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray retStatus = new JSONArray();
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookupsAll(subState);
+//            List<Memlookup> listStatus = StatusUtils.getPass(subState);
+            listStatus.forEach((status) -> {
+                JSONObject prodObj = new JSONObject();
+                prodObj.put("uuid", status.getUuid())
+                        .put("lookupCode", status.getLookupCode())
+                        .put("lookupNameTh", status.getLookupNameTh())
+                        .put("lookupNameEn", status.getLookupNameEn())
+                        .put("lookupValue", status.getLookupValue());
+                retStatus.put(prodObj);
+            });
+            returnVal.put("datas", retStatus);
+        } catch (JSONException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/stateall", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListStateReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        log.info(String.format("GET : /api/report/list/stateall/"));
+        logger.info(String.format("GET : /api/report/list/stateall/"));
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray retState = new JSONArray();
-            List<ShelfLookup> listState = new ShelfLookupDao().getActiveShelfLookupByGroupAndType(Utils.validateSubStateFromHeader(request), "PROCESS_STATE", "PROCESS_STATE");
+            List<ShelfLookup> listState = new ShelfLookupDao().getActiveShelfLookupByGroupAndType(subState, "PROCESS_STATE", "PROCESS_STATE");
             listState.forEach((state) -> {
                 JSONObject prodObj = new JSONObject();
                 prodObj.put("uuid", state.getUuid())
@@ -463,38 +626,46 @@ public class UtilityController {
                 retState.put(prodObj);
             });
             returnVal.put("datas", retState);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/report/list/category", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getListCategoryReport(HttpServletRequest request) {
+    public ResponseEntity<?> getListCategoryReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/report/list/category");
+        log.info("GET : /api/report/list/category");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            returnVal.put("datas", new SysOperLogDao().getListTaskCategory(Utils.validateSubStateFromHeader(request)));
-        } catch (JSONException e) {
-            e.printStackTrace();
+            returnVal.put("datas", new SysOperLogDao().getListTaskCategory(subState));
+        } catch (JSONException | SQLException | HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "api/error/{code}", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getErrorMsg(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String code) {
+    public ResponseEntity<?> getErrorMsg(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String code, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info(String.format("GET : api/error/%s", code));
+        log.info(String.format("GET : api/error/%s", code));
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray arr = new JSONArray();
             ShelfLookupDao dao = new ShelfLookupDao();
-            List<ShelfLookup> list = dao.getShelfLookupByLkCode(Utils.validateSubStateFromHeader(request), code, "CODE_ERROR", "CODE_ERROR");
+            List<ShelfLookup> list = dao.getShelfLookupByLkCode(subState, code, "CODE_ERROR", "CODE_ERROR");
             for (ShelfLookup lk : list) {
                 JSONObject data = new JSONObject();
                 data.put("value", ValidUtils.null2NoData(lk.getLookupCode()));
@@ -502,9 +673,10 @@ public class UtilityController {
                 arr.put(data);
             }
             returnVal.put("datas", arr);
-        } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
 
@@ -512,15 +684,17 @@ public class UtilityController {
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "api/process/{code}", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getProcessErrorMsg(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String code) {
+    public ResponseEntity<?> getProcessErrorMsg(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String code, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info(String.format("GET : api/process/%s", code));
+        log.info(String.format("GET : api/process/%s", code));
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray arr = new JSONArray();
             ShelfLookupDao dao = new ShelfLookupDao();
-            List<ShelfLookup> list = dao.getShelfLookupByLkCode(Utils.validateSubStateFromHeader(request), code, "PROCESS_ERROR", "PROCESS_ERROR");
+            List<ShelfLookup> list = dao.getShelfLookupByLkCode(subState, code, "PROCESS_ERROR", "PROCESS_ERROR");
             for (ShelfLookup lk : list) {
                 JSONObject data = new JSONObject();
                 data.put("value", ValidUtils.null2NoData(lk.getLookupCode()));
@@ -528,9 +702,10 @@ public class UtilityController {
                 arr.put(data);
             }
             returnVal.put("datas", arr);
-        } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
 
@@ -538,13 +713,15 @@ public class UtilityController {
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/lookup/list", method = POST)
     @ResponseBody
-    public ResponseEntity<?> getListLookupByGroup(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> getListLookupByGroup(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /api/lookup/list");
+        log.info("POST : /api/lookup/list");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
-            JSONObject datas = new JSONObject(payload);
+            JSONObject datas = new JSONObject(reqBody);
             String lookupType = "", groupType = "";
             if (datas.has("data")) {
                 JSONObject data = datas.getJSONObject("data");
@@ -553,7 +730,7 @@ public class UtilityController {
             }
             JSONArray arr = new JSONArray();
             ShelfLookupDao dao = new ShelfLookupDao();
-            List<ShelfLookup> list = dao.getShelfLookupByLkCode(Utils.validateSubStateFromHeader(request), null, groupType, lookupType);
+            List<ShelfLookup> list = dao.getShelfLookupByLkCode(subState, null, groupType, lookupType);
             for (ShelfLookup lk : list) {
                 JSONObject data = new JSONObject();
                 data.put("value", ValidUtils.null2NoData(lk.getLookupCode()));
@@ -566,27 +743,31 @@ public class UtilityController {
                 arr.put(data);
             }
             returnVal.put("datas", arr);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        } catch (JSONException | HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/report/list/trn_status", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getListTrnStatusReport(HttpServletRequest request) {
+    public ResponseEntity<?> getListTrnStatusReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/report/list/trn_status");
+        log.info("GET : /api/report/list/trn_status");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray retStatus = new JSONArray();
             List<String> lkValues = new ArrayList<>();
             lkValues.add("pass");
             lkValues.add("fail");
-            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(Utils.validateSubStateFromHeader(request), lkValues);
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
 
-//            List<Memlookup> listStatus = new SysLookupDao().getListLookupFromTrnStatus(Utils.validateSubStateFromHeader(request));
+//            List<Memlookup> listStatus = new SysLookupDao().getListLookupFromTrnStatus(subState);
             listStatus.forEach((status) -> {
                 JSONObject prodObj = new JSONObject();
                 prodObj.put("uuid", status.getUuid())
@@ -598,21 +779,25 @@ public class UtilityController {
             });
             returnVal.put("datas", retStatus);
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/report/list/process_error", method = GET)
     @ResponseBody
-    public ResponseEntity<?> getListProcessErrorReport(HttpServletRequest request) {
+    public ResponseEntity<?> getListProcessErrorReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("GET : /api/report/list/process_error");
+        log.info("GET : /api/report/list/process_error");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray retStatus = new JSONArray();
-            List<ShelfLookup> listStatus = new SysLookupDao().getListLookupFromProcError(Utils.validateSubStateFromHeader(request));
+            List<ShelfLookup> listStatus = new SysLookupDao().getListLookupFromProcError(subState);
             listStatus.forEach((status) -> {
                 JSONObject prodObj = new JSONObject();
                 prodObj.put("uuid", status.getUuid())
@@ -624,20 +809,24 @@ public class UtilityController {
             });
             returnVal.put("datas", retStatus);
         } catch (JSONException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/audit_log/save", method = POST)
     @ResponseBody
-    public ResponseEntity<?> saveAuditLogLogin(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String payload) {
+    public ResponseEntity<?> saveAuditLogLogin(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("POST : /api/audit_log/save");
+        log.info("POST : /api/audit_log/save");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONArray());
         try {
-            JSONObject data = new JSONObject(payload);
+            JSONObject data = new JSONObject(reqBody);
             SysAuditLog sysAuditLog = new SysAuditLog();
             if (data.length() > 0) {
                 sysAuditLog.setUuid(Utils.getUUID());
@@ -661,49 +850,450 @@ public class UtilityController {
                 sysAuditLog.setCreateBy(data.has("accountName") ? data.getString("accountName") : "");
             } else {
                 returnVal.put("status", 400)
-                        .put("description", "No data available.");
+                        .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0069"));
                 return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.BAD_REQUEST));
             }
             JSONObject retJson = new JSONObject();
             SysAuditLogDao dao = new SysAuditLogDao();
-            SysAuditLog sysAuditLogs = dao.getSysAuditLogByLogName(Utils.validateSubStateFromHeader(request), sysAuditLog.getLogName());
-            sysAuditLog = dao.saveSysAuditLog(Utils.validateSubStateFromHeader(request), sysAuditLog);
+            SysAuditLog sysAuditLogs = dao.getSysAuditLogByLogName(subState, sysAuditLog.getLogName());
+            sysAuditLog = dao.saveSysAuditLog(subState, sysAuditLog);
             retJson.put("uuid", sysAuditLog.getUuid());
             retJson.put("lastTime", sysAuditLogs == null ? "" : ValidUtils.null2NoData(sysAuditLogs.getAttr1())); //เปลี่ยนAttr2 เป็น getAttr1 05/06/2020
             returnVal.put("data", retJson);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+    @Log_decorator
     @RequestMapping(value = "/api/audit_log/save/{uuid}", method = PUT)
     @ResponseBody
-    public ResponseEntity<?> updateAuditLogLogin(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String uuid) {
+    public ResponseEntity<?> updateAuditLogLogin(HttpSession session, HttpServletResponse response, HttpServletRequest request, @PathVariable String uuid, @RequestHeader(value = "sub_state", required = false) String subState) {
         logger.info("PUT : /api/audit_log/save");
+        log.info("PUT : /api/audit_log/save");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONArray());
         try {
             SysAuditLog sysAuditLog = new SysAuditLog();
             if (uuid == null || uuid.isEmpty()) {
                 returnVal.put("status", 400)
-                        .put("description", "No data available.");
+                        .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0070"));
                 return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.BAD_REQUEST));
             }
             JSONObject retJson = new JSONObject();
             SysAuditLogDao dao = new SysAuditLogDao();
-            sysAuditLog = dao.getSysAuditLogByUUID(Utils.validateSubStateFromHeader(request), uuid);
+            sysAuditLog = dao.getSysAuditLogByUUID(subState, uuid);
             Date currentDate = new Date();
             sysAuditLog.setAttr2(Utils.convertFormatDate2Str(currentDate));
-            sysAuditLog = dao.updateSysAuditLog(Utils.validateSubStateFromHeader(request), sysAuditLog);
+            sysAuditLog = dao.updateSysAuditLog(subState, sysAuditLog);
             retJson.put("uuid", sysAuditLog.getUuid());
             returnVal.put("data", retJson);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/temp/list/status", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getTemplateStatusList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /api/temp/list/status");
+        log.info("GET : /api/temp/list/status");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray retStatus = new JSONArray();
+            List<String> lkValues = new ArrayList<>();
+            lkValues.add("inprogress");
+            lkValues.add("waittoapprove");
+            lkValues.add("inactive");
+            lkValues.add("active");
+            lkValues.add("reject");
+            lkValues.add("waittodelete");
+//            lkValues.add("expire");
+//            lkValues.add("cancel");            
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
+            listStatus.sort(nullsFirst(comparing(SysLookup::getAttr1, nullsFirst(naturalOrder()))));
+            listStatus.forEach((status) -> {
+                JSONObject prodObj = new JSONObject();
+                prodObj.put("uuid", status.getUuid())
+                        .put("lookupCode", status.getLookupCode())
+                        .put("lookupNameTh", status.getLookupNameTh())
+                        .put("lookupNameEn", status.getLookupNameEn())
+                        .put("lookupValue", status.getLookupValue());
+                retStatus.put(prodObj);
+            });
+            returnVal.put("datas", retStatus);
+        } catch (JSONException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/tempapprove/list/status", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getTemplatePrroveStatusList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /api/tempapprove/list/status");
+        log.info("GET : /api/tempapprove/list/status");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray retStatus = new JSONArray();
+            List<String> lkValues = new ArrayList<>();
+            lkValues.add("waittodelete");
+            lkValues.add("waittoapprove");
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
+            listStatus.forEach((status) -> {
+                JSONObject prodObj = new JSONObject();
+                prodObj.put("uuid", status.getUuid())
+                        .put("lookupCode", status.getLookupCode())
+                        .put("lookupNameTh", status.getLookupNameTh())
+                        .put("lookupNameEn", status.getLookupNameEn())
+                        .put("lookupValue", status.getLookupValue());
+                retStatus.put(prodObj);
+            });
+            returnVal.put("datas", retStatus);
+        } catch (JSONException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/theme/list/status", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getThemeStatusList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /api/theme/list/status");
+        log.info("GET : /api/theme/list/status");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray retStatus = new JSONArray();
+            List<String> lkValues = new ArrayList<>();
+            lkValues.add("active");
+            lkValues.add("inactive");
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
+            listStatus.forEach((status) -> {
+                JSONObject prodObj = new JSONObject();
+                prodObj.put("uuid", status.getUuid())
+                        .put("lookupCode", status.getLookupCode())
+                        .put("lookupNameTh", status.getLookupNameTh())
+                        .put("lookupNameEn", status.getLookupNameEn())
+                        .put("lookupValue", status.getLookupValue());
+                retStatus.put(prodObj);
+            });
+            returnVal.put("datas", retStatus);
+        } catch (JSONException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/prod/list/status", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getProductStatusList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /api/prod/list/status");
+        log.info("GET : /api/prod/list/status");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray retStatus = new JSONArray();
+            List<String> lkValues = new ArrayList<>();
+            lkValues.add("active");
+            lkValues.add("inactive");
+            lkValues.add("inprogress");
+            lkValues.add("waittoapprove");
+            lkValues.add("waittoapprove2");
+            lkValues.add("expire");
+//            lkValues.add("cancel");
+            lkValues.add("waittodelete");
+            lkValues.add("waittoterminate");
+            lkValues.add("waittopause");
+            lkValues.add("terminate");
+            lkValues.add("pause");
+            lkValues.add("reject");
+            lkValues.add("waittostart");
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
+            listStatus.forEach((status) -> {
+                JSONObject prodObj = new JSONObject();
+                prodObj.put("uuid", status.getUuid())
+                        .put("lookupCode", status.getLookupCode())
+                        .put("lookupNameTh", status.getLookupNameTh())
+                        .put("lookupNameEn", status.getLookupNameEn())
+                        .put("lookupValue", status.getLookupValue());
+                retStatus.put(prodObj);
+            });
+            returnVal.put("datas", retStatus);
+        } catch (JSONException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/prodapprove/list/status", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getProductApproveStatusList(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("GET : /api/prodapprove/list/status");
+        log.info("GET : /api/prodapprove/list/status");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray retStatus = new JSONArray();
+            List<String> lkValues = new ArrayList<>();
+            lkValues.add("waittoapprove");
+            lkValues.add("waittoapprove2");
+            lkValues.add("waittopause");
+            lkValues.add("waittodelete");
+            lkValues.add("waittoterminate");
+            lkValues.add("waittostart");
+            List<SysLookup> listStatus = new SysLookupDao().getListSysLookups(subState, lkValues);
+            listStatus.forEach((status) -> {
+                JSONObject prodObj = new JSONObject();
+                prodObj.put("uuid", status.getUuid())
+                        .put("lookupCode", status.getLookupCode())
+                        .put("lookupNameTh", status.getLookupNameTh())
+                        .put("lookupNameEn", status.getLookupNameEn())
+                        .put("lookupValue", status.getLookupValue());
+                retStatus.put(prodObj);
+            });
+            returnVal.put("datas", retStatus);
+        } catch (JSONException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "api/autoactive", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getProductCodeFrontEnd(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String prodCode,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) {
+        logger.info("GET : /api/autoactive");
+        log.info("GET : /api/autoactive");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
+        try {
+            TemplateUtils.setActiveExpireTemplate(subState);
+            ProductUtils.setActiveExpireProduct(subState);
+        } catch (JSONException | NullPointerException | HibernateException | SQLException | ParseException e) {
+            log.info("" + e);
+            logger.info(e.getMessage());
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/status/{product}", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListProductStatus(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String product,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/status/%s", product));
+        logger.info(String.format("GET : /api/report/list/status/%s", product));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONArray listStatus = new ShelfProductDao().getListMapProductStatus(subState, product);
+            returnVal.put("datas", listStatus);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/component/{status}", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListStatusComponent(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String status,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/component/%s", status));
+        logger.info(String.format("GET : /api/report/list/component/%s", status));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONArray listcomponent = new ShelfProductDao().getListMapStatusComponent(subState, status);
+            returnVal.put("datas", listcomponent);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/statebycompstatus/", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListStateByReq(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @RequestBody String reqBody,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/statebycompstatus/"));
+        logger.info(String.format("GET : /api/report/list/statebycompstatus/"));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONObject datas = new JSONObject(reqBody);
+            String component = "", status = "";
+            if (datas.has("data")) {
+                JSONObject data = datas.getJSONObject("data");
+                String component_data = data.getString("component");
+                String status_data = data.getString("status");
+                component = component_data != null || component_data != "" ? data.getString("component") : "";
+                status = status_data != null || status_data != "" ? data.getString("status") : "";
+            }
+            JSONArray liststate = new ShelfProductDao().getListStateByCompStatus(subState, component, status);
+            returnVal.put("datas", liststate);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/statebystatus/{status}", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListStateByStatus(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String status,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/statebystatus/%s", status));
+        logger.info(String.format("GET : /api/report/list/statebystatus/%s", status));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONArray liststate = new ShelfProductDao().getListStateByStataus(subState, status);
+            returnVal.put("datas", liststate);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/statebycomponent/{component}", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getDataListStateByComponent(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @PathVariable String component,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/statebycomponent/%s", component));
+        logger.info(String.format("GET : /api/report/list/statebycomponent/%s", component));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONArray liststate = new ShelfProductDao().getListStateByComponent(subState, component);
+            returnVal.put("datas", liststate);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }
+
+    @Log_decorator
+    @RequestMapping(value = "/api/report/list/component", method = GET)
+    @ResponseBody
+    public ResponseEntity<?> getListComponentReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException {
+        logger.info("GET : /api/report/list/component");
+        log.info("GET : /api/report/list/component");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONArray listComp = new ShelfProductDao().getListShelfComponentOnShelf(subState);
+            returnVal.put("datas", listComp);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+
+    /*@Log_decorator
+    @RequestMapping(value = "/api/report/list/state/", method = RequestMethod.GET)
+    @ResponseBody
+    public ResponseEntity<?> getListStateByReq(HttpSession session, HttpServletResponse response,
+            HttpServletRequest request,
+            @RequestBody String reqBody,
+            @RequestHeader(value = "sub_state", required = false) String subState
+    ) throws SQLException {
+        log.info(String.format("GET : /api/report/list/state/"));
+        logger.info(String.format("GET : /api/report/list/state/"));
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
+        try {
+            JSONObject datas = new JSONObject(reqBody);
+            String component = "", status = "";
+            if (datas.has("data")) {
+                JSONObject data = datas.getJSONObject("data");
+                String component_data = data.getString("component");
+                String status_data = data.getString("status")
+                component = component_data != null || component_data != "" ? data.getString("component") : "";
+                status = status_data != null || status_data != "" ? data.getString("status") : "";
+            }
+            JSONArray liststate = new ShelfProductDao().getListStateByCompStatus(subState, component, status);
+            returnVal.put("datas", liststate);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
+    }*/
 }

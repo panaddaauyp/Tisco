@@ -6,6 +6,7 @@
 package th.co.d1.digitallending.util;
 
 import com.google.gson.Gson;
+import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,15 +18,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.hibernate.HibernateException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import th.co.d1.digitallending.dao.ShelfProductDao;
 import th.co.d1.digitallending.dao.ShelfProductVcsDao;
+import th.co.d1.digitallending.dao.ShelfThemeDao;
 import th.co.d1.digitallending.dao.ShelfTmpDao;
 import th.co.d1.digitallending.dao.ShelfTmpDetailDao;
+import th.co.d1.digitallending.dao.ShelfTmpVcsDao;
+import th.co.d1.digitallending.dao.SysLookupDao;
 import th.co.d1.digitallending.entity.ShelfComp;
 import th.co.d1.digitallending.entity.ShelfCompDtl;
 import th.co.d1.digitallending.entity.ShelfProduct;
@@ -42,9 +46,9 @@ import static th.co.d1.digitallending.util.Utils.getUUID;
  */
 public class ProductUtils {
 
-    final static Logger logger = Logger.getLogger(ProductUtils.class);
+    final static Logger logger = Logger.getLogger(ProductUtils.class.getName());
 
-    public static JSONObject getInitialProductComponentByUUID(String dbEnv, ShelfComp shelfComp, List<ShelfCompDtl> shelfCompDtlList, boolean fullObj, String prodUuid) {
+    public static JSONObject getInitialProductComponentByUUID(String dbEnv, ShelfComp shelfComp, List<ShelfCompDtl> shelfCompDtlList, boolean fullObj, String prodUuid) throws ParseException {
         JSONObject component = new JSONObject();
         JSONArray subComp = new JSONArray();
         component.put("compUuid", shelfComp.getUuid());
@@ -100,6 +104,10 @@ public class ProductUtils {
 //                                                subCompObj.put("data", shelfCompDtl.getDataValue().isEmpty() ? new JSONArray() : new JSONArray(shelfCompDtl.getDataValue()));
                                                     if (null != shelfCompDtl.getAttr2()) {
                                                         subCompObj.put("data", new LookupUtils().getLookupList(dbEnv, ValidUtils.null2NoData(shelfCompDtl.getAttr2()), prodUuid));
+                                                        if (subCompObj.has("value") && !subCompObj.getString("value").isEmpty()
+                                                                && subCompObj.has("id") && "calFactorsList".equalsIgnoreCase(subCompObj.getString("id"))) {
+                                                            subCompObj.put("data", new JSONArray(subCompObj.getString("value")));
+                                                        }
                                                     }
                                                 }
                                                 if ("IN004".equalsIgnoreCase(shelfCompDtl.getLkUuid().getLookupCode()) || "IN009".equalsIgnoreCase(shelfCompDtl.getLkUuid().getLookupCode())
@@ -168,6 +176,10 @@ public class ProductUtils {
                                                                         subCompObj.put("data", new JSONArray());
                                                                     } else {
                                                                         subCompObj.put("data", new LookupUtils().getLookupList(dbEnv, ValidUtils.null2NoData(shelfCompDtl.getAttr2()), prodUuid));
+                                                                        if (subCompObj.has("value") && !subCompObj.getString("value").isEmpty()
+                                                                                && subCompObj.has("id") && "calFactorsList".equalsIgnoreCase(subCompObj.getString("id"))) {
+                                                                            subCompObj.put("data", new JSONArray(subCompObj.getString("value")));
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -290,6 +302,10 @@ public class ProductUtils {
 //                                                                        subCompObj.put("data", shelfCompDtl.getDataValue().isEmpty() ? new JSONArray() : new JSONArray(shelfCompDtl.getDataValue()));
                                                                             if (null != shelfCompDtl.getAttr2()) {
                                                                                 subCompObj.put("data", new LookupUtils().getLookupList(dbEnv, ValidUtils.null2NoData(shelfCompDtl.getAttr2()), prodUuid));
+                                                                                if (subCompObj.has("value") && !subCompObj.getString("value").isEmpty()
+                                                                                        && subCompObj.has("id") && "calFactorsList".equalsIgnoreCase(subCompObj.getString("id"))) {
+                                                                                    subCompObj.put("data", new JSONArray(subCompObj.getString("value")));
+                                                                                }
                                                                             }
                                                                         }
                                                                         if ("IN004".equalsIgnoreCase(shelfCompDtl.getLkUuid().getLookupCode()) || "IN009".equalsIgnoreCase(shelfCompDtl.getLkUuid().getLookupCode())
@@ -354,6 +370,10 @@ public class ProductUtils {
 //                                                                                    subCompObj.put("data", shelfCompDtl.getDataValue().isEmpty() ? new JSONArray() : new JSONArray(shelfCompDtl.getDataValue()));
                                                                                         if (null != shelfCompDtl.getAttr2()) {
                                                                                             subCompObj.put("data", new LookupUtils().getLookupList(dbEnv, ValidUtils.null2NoData(shelfCompDtl.getAttr2()), prodUuid));
+                                                                                            if (subCompObj.has("value") && !subCompObj.getString("value").isEmpty()
+                                                                                                    && subCompObj.has("id") && "calFactorsList".equalsIgnoreCase(subCompObj.getString("id"))) {
+                                                                                                subCompObj.put("data", new JSONArray(subCompObj.getString("value")));
+                                                                                            }
                                                                                         }
                                                                                     }
                                                                                     if ("IN004".equalsIgnoreCase(shelfCompDtl.getLkUuid().getLookupCode()) || "IN009".equalsIgnoreCase(shelfCompDtl.getLkUuid().getLookupCode())
@@ -411,192 +431,201 @@ public class ProductUtils {
             }
             component.put("subComp", subComp);
         } catch (JSONException | NullPointerException je) {
-            logger.error(je.getMessage());
+            logger.info(je.getMessage());
+            throw je;
         }
         return component;
     }
 
-    public static ShelfProduct getProduct(String dbEnv, JSONObject datas, Date sysdate, String username) {
+    public static ShelfProduct getProduct(String dbEnv, JSONObject datas, Date sysdate, String username) throws JSONException, NullPointerException {
         Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
         Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
         ShelfProduct prod = new ShelfProduct();
-        try {
-            if (datas.has("data")) {
-                JSONObject objData = datas.getJSONObject("data");
-                ShelfTheme theme = null;
-                if (objData.getJSONObject("product").has("theme")) {
-                    theme = new ShelfTheme(objData.getJSONObject("product").getString("theme"));
-                    objData.getJSONObject("product").remove("theme");
+        if (datas.has("data")) {
+            JSONObject objData = datas.getJSONObject("data");
+            ShelfTheme theme = null;
+            if (objData.getJSONObject("product").has("theme")) {
+                theme = new ShelfTheme(objData.getJSONObject("product").getString("theme"));
+                objData.getJSONObject("product").remove("theme");
+            }
+            ShelfTmp template = null;
+            if (objData.getJSONObject("product").has("template")) {
+                template = new ShelfTmp(objData.getJSONObject("product").getString("template"));
+                objData.getJSONObject("product").remove("template");
+            }
+            List<ShelfProductVcs> listVcs = new ArrayList<>();
+            ShelfProductVcs vcs = new ShelfProductVcs();    //set object of product
+            vcs.setUuid(getUUID());
+            vcs.setThemeUuid(theme);
+            vcs.setTemUuid(template.getUuid());
+            vcs.setProdUuid(prod);
+            vcs.setState(ValidUtils.null2NoData(StatusUtils.getInprogress(dbEnv).getStatusCode()));
+            vcs.setCreateBy(username);
+            vcs.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
+            int prodVer = 0, tmpVer = 0;
+            if (objData.has("product")) {
+                List<ShelfProductDtl> listDtl = new ArrayList<>();
+                JSONObject jsonProd = objData.getJSONObject("product");
+                prod.setUuid(jsonProd.has("uuid") && !jsonProd.getString("uuid").isEmpty() ? jsonProd.getString("uuid") : getUUID());
+                prod.setProdCode(jsonProd.has("prodCode") ? jsonProd.getString("prodCode") : "");
+                prod.setProdName(jsonProd.has("prodName") ? jsonProd.getString("prodName") : "");
+                prod.setCompany(jsonProd.has("company") ? jsonProd.getString("company") : "");
+                prod.setBusinessDept(jsonProd.has("businessDept") ? jsonProd.getString("businessDept") : "");
+                prod.setBusinessLine(jsonProd.has("businessLine") ? jsonProd.getString("businessLine") : "");
+                prod.setProdType(jsonProd.has("prodType") ? jsonProd.getString("prodType") : "");
+                if (jsonProd.has("statusName")) {
+                    jsonProd.remove("statusName");
                 }
-                ShelfTmp template = null;
-                if (objData.getJSONObject("product").has("template")) {
-                    template = new ShelfTmp(objData.getJSONObject("product").getString("template"));
-                    objData.getJSONObject("product").remove("template");
+                if (jsonProd.has("statusNameEn")) {
+                    jsonProd.remove("statusNameEn");
                 }
-                List<ShelfProductVcs> listVcs = new ArrayList<>();
-                ShelfProductVcs vcs = new ShelfProductVcs();    //set object of product
-                vcs.setUuid(getUUID());
-                vcs.setThemeUuid(theme);
-                vcs.setTemUuid(template.getUuid());
-                vcs.setProdUuid(prod);
-                vcs.setState(ValidUtils.null2NoData(StatusUtils.getInprogress(dbEnv).getStatusCode()));
-                vcs.setCreateBy(username);
-                vcs.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
-                int prodVer = 0, tmpVer = 0;
-                if (objData.has("product")) {
-                    List<ShelfProductDtl> listDtl = new ArrayList<>();
-                    JSONObject jsonProd = objData.getJSONObject("product");
-                    prod.setUuid(jsonProd.has("uuid") && !jsonProd.getString("uuid").isEmpty() ? jsonProd.getString("uuid") : getUUID());
-                    prod.setProdCode(jsonProd.has("prodCode") ? jsonProd.getString("prodCode") : "");
-                    prod.setProdName(jsonProd.has("prodName") ? jsonProd.getString("prodName") : "");
-                    prod.setCompany(jsonProd.has("company") ? jsonProd.getString("company") : "");
-                    prod.setBusinessDept(jsonProd.has("businessDept") ? jsonProd.getString("businessDept") : "");
-                    prod.setBusinessLine(jsonProd.has("businessLine") ? jsonProd.getString("businessLine") : "");
-                    if (jsonProd.has("statusName")) {
-                        jsonProd.remove("statusName");
-                    }
-                    if (jsonProd.has("templateName")) {
-                        jsonProd.remove("templateName");
-                    }
-                    if (jsonProd.has("status")) {
-                        jsonProd.remove("status");
-                    }
-                    if (jsonProd.has("verProd")) {
-                        prodVer = ValidUtils.obj2Int(jsonProd.get("verProd"));
-                        jsonProd.remove("verProd");
-                    }
-                    if (jsonProd.has("company")) {
-                        jsonProd.remove("company");
-                    }
-                    if (jsonProd.has("businessDept")) {
-                        jsonProd.remove("businessDept");
-                    }
-                    if (jsonProd.has("businessLine")) {
-                        jsonProd.remove("businessLine");
-                    }
-                    if (jsonProd.has("tmpVer")) {
-                        tmpVer = ValidUtils.obj2Int(jsonProd.get("tmpVer"));
-                        jsonProd.remove("tmpVer");
-                    }
-                    jsonProd.remove("uuid");
-                    Iterator<?> prodKName = jsonProd.keys();
-                    while (prodKName.hasNext()) {
-                        String kName = (String) prodKName.next();
-                        ShelfProductDtl dtl = new ProductUtils().generateObject(dbEnv, jsonProd, kName);
-                        if (null != dtl) {
-                            dtl.setCreateBy(username);
-                            dtl.setStatus(statusActive);
-                            dtl.setDtlStatus(statusActive);
-                            listDtl.add(dtl);
-                        }
-                    }
-                    vcs.setShelfProductDtlList(listDtl);
-                    vcs.setVerProd(prodVer);
-                    vcs.setVerTem(tmpVer);
+                if (jsonProd.has("templateName")) {
+                    jsonProd.remove("templateName");
                 }
+                if (jsonProd.has("status")) {
+                    jsonProd.remove("status");
+                }
+                if (jsonProd.has("verProd")) {
+                    prodVer = ValidUtils.obj2Int(jsonProd.get("verProd"));
+                    jsonProd.remove("verProd");
+                }
+                if (jsonProd.has("company")) {
+                    jsonProd.remove("company");
+                }
+                if (jsonProd.has("businessDept")) {
+                    jsonProd.remove("businessDept");
+                }
+                if (jsonProd.has("businessLine")) {
+                    jsonProd.remove("businessLine");
+                }
+                if (jsonProd.has("tmpVer")) {
+                    tmpVer = ValidUtils.obj2Int(jsonProd.get("tmpVer"));
+                    jsonProd.remove("tmpVer");
+                }
+                if (jsonProd.has("confirm")) {
+                    jsonProd.remove("confirm");
+                }
+                if (jsonProd.has("action")) {
+                    jsonProd.remove("action");
+                }
+                jsonProd.remove("uuid");
+                Iterator<?> prodKName = jsonProd.keys();
+                while (prodKName.hasNext()) {
+                    String kName = (String) prodKName.next();
+                    ShelfProductDtl dtl = new ProductUtils().generateObject(dbEnv, jsonProd, kName);
+                    if (null != dtl) {
+                        dtl.setCreateBy(username);
+                        dtl.setStatus(statusActive);
+                        dtl.setDtlStatus(statusActive);
+                        listDtl.add(dtl);
+                    }
+                }
+                vcs.setShelfProductDtlList(listDtl);
+                vcs.setVerProd(prodVer);
+                vcs.setVerTem(tmpVer);
+            }
 //            vcs.setCompStatus(StatusUtils.getActive());
-                listVcs.add(vcs);
-                if (objData.has("component")) {
-                    List<ShelfProductVcs> list2 = new ProductUtils().getProductInfo(dbEnv, objData.getJSONArray("component"), username, prod, theme, template, prodVer, tmpVer);
-                    listVcs.addAll(list2);
+            listVcs.add(vcs);
+            if (objData.has("component")) {
+                List<ShelfProductVcs> list2 = new ProductUtils().getProductInfo(dbEnv, objData.getJSONArray("component"), username, prod, theme, template, prodVer, tmpVer);
+                listVcs.addAll(list2);
+            }
+            ShelfProduct p2 = new ShelfProductDao().getShelfProductByUUID(dbEnv, prod.getUuid());
+            if (null != p2) {
+                List<ShelfProductVcs> newVcs = new ArrayList<>();
+                HashMap hmapOriginVcs = new HashMap();
+                for (ShelfProductVcs pvcs : p2.getShelfProductVcsList()) {
+                    String kName = pvcs.getProdUuid().getUuid() + "_" + (null != pvcs.getCompUuid() ? pvcs.getCompUuid().getUuid() : "") + "_" + pvcs.getVerProd();
+                    hmapOriginVcs.put(kName, pvcs);
                 }
-                ShelfProduct p2 = new ShelfProductDao().getShelfProductByUUID(dbEnv, prod.getUuid());
-                if (null != p2) {
-                    List<ShelfProductVcs> newVcs = new ArrayList<>();
-                    HashMap hmapOriginVcs = new HashMap();
-                    for (ShelfProductVcs pvcs : p2.getShelfProductVcsList()) {
-                        String kName = pvcs.getProdUuid().getUuid() + "_" + (null != pvcs.getCompUuid() ? pvcs.getCompUuid().getUuid() : "") + "_" + pvcs.getVerProd();
-                        hmapOriginVcs.put(kName, pvcs);
-                    }
-                    for (ShelfProductVcs pvcs : listVcs) {
-                        String kName = pvcs.getProdUuid().getUuid() + "_" + (null != pvcs.getCompUuid() ? pvcs.getCompUuid().getUuid() : "") + "_" + pvcs.getVerProd();
-                        ShelfProductVcs data = (ShelfProductVcs) hmapOriginVcs.get(kName);
-                        if (null == data) {
-                            data = pvcs;
-                            data.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
-                            data.setState(StatusUtils.setStatus(data.getState(), ValidUtils.null2NoData(data.getStatus())));
-                            data.setCreateAt(sysdate);
-                            data.setCreateBy(username);
-                            data.setVerTem(tmpVer);
-                            newVcs.add(data);
-                        } else {
-                            if (null == data.getCompUuid()) {
+                for (ShelfProductVcs pvcs : listVcs) {
+                    String kName = pvcs.getProdUuid().getUuid() + "_" + (null != pvcs.getCompUuid() ? pvcs.getCompUuid().getUuid() : "") + "_" + pvcs.getVerProd();
+                    ShelfProductVcs data = (ShelfProductVcs) hmapOriginVcs.get(kName);
+                    if (null == data) {
+                        data = pvcs;
+                        data.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
+                        data.setState(StatusUtils.setStatus(data.getState(), ValidUtils.null2NoData(data.getStatus())));
+                        data.setCreateAt(sysdate);
+                        data.setCreateBy(username);
+                        data.setVerTem(tmpVer);
+                        newVcs.add(data);
+                    } else {
+                        if (null == data.getCompUuid()) {
 //                                data.setState(ValidUtils.null2NoData(StatusUtils.getInprogress(dbEnv).getStatusCode()));
-                            }
-                            List<ShelfProductDtl> newDtl = new ArrayList<>();//                        เอาค่าใหม่ มาใส่รายการเก่า
-                            data.setTemUuid(pvcs.getTemUuid());
-                            data.setThemeUuid(pvcs.getThemeUuid());
-                            data.setVerTem(tmpVer);
-                            data.setState(StatusUtils.setStatus(data.getState(), pvcs.getState()));
-                            data.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
-                            data.setUpdateBy(username);
-                            data.setUpdateAt(sysdate);
-                            List<ShelfProductDtl> originList = data.getShelfProductDtlList();
-                            List<ShelfProductDtl> newDtlList = pvcs.getShelfProductDtlList();
-                            HashMap hmapOriginDtl = new HashMap();
-                            for (ShelfProductDtl d2 : originList) {
-                                hmapOriginDtl.put(d2.getLkCode(), d2);
-                            }
-                            for (ShelfProductDtl d2 : newDtlList) {
-                                ShelfProductDtl dtl2 = (ShelfProductDtl) hmapOriginDtl.get(d2.getLkCode());
-                                if (dtl2 == null) {
-                                    dtl2 = d2;
-                                    dtl2.setCreateAt(sysdate);
-                                    dtl2.setCreateBy(username);
-                                } else {
-                                    dtl2.setLkLabel(d2.getLkLabel());
-                                    dtl2.setLkValue(d2.getLkValue());
-                                    dtl2.setUpdateBy(username);
-                                    dtl2.setUpdateAt(sysdate);
-                                    hmapOriginDtl.remove(d2.getLkCode());
-                                }
-                                dtl2.setStatus(statusActive);
-                                dtl2.setDtlStatus(statusActive);
-                                newDtl.add(dtl2);
-                            }
-                            Set<String> dtlKName = hmapOriginDtl.keySet();
-                            for (String k2 : dtlKName) {
-                                ShelfProductDtl dtl2 = (ShelfProductDtl) hmapOriginDtl.get(k2);
-                                dtl2.setStatus(statusInactive);
+                        }
+                        List<ShelfProductDtl> newDtl = new ArrayList<>();//                        เอาค่าใหม่ มาใส่รายการเก่า
+                        data.setTemUuid(pvcs.getTemUuid());
+                        data.setThemeUuid(pvcs.getThemeUuid());
+                        data.setVerTem(tmpVer);
+                        data.setState(StatusUtils.setStatus(data.getState(), pvcs.getState()));
+                        data.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
+                        data.setUpdateBy(username);
+                        data.setUpdateAt(sysdate);
+                        List<ShelfProductDtl> originList = data.getShelfProductDtlList();
+                        List<ShelfProductDtl> newDtlList = pvcs.getShelfProductDtlList();
+                        HashMap hmapOriginDtl = new HashMap();
+                        for (ShelfProductDtl d2 : originList) {
+                            hmapOriginDtl.put(d2.getLkCode(), d2);
+                        }
+                        for (ShelfProductDtl d2 : newDtlList) {
+                            ShelfProductDtl dtl2 = (ShelfProductDtl) hmapOriginDtl.get(d2.getLkCode());
+                            if (dtl2 == null) {
+                                dtl2 = d2;
                                 dtl2.setCreateAt(sysdate);
                                 dtl2.setCreateBy(username);
-                                dtl2.setDtlStatus(statusInactive);
-                                newDtl.add(dtl2);
+                            } else {
+                                dtl2.setLkLabel(d2.getLkLabel());
+                                dtl2.setLkValue(d2.getLkValue());
+                                dtl2.setUpdateBy(username);
+                                dtl2.setUpdateAt(sysdate);
+                                hmapOriginDtl.remove(d2.getLkCode());
                             }
-                            data.setShelfProductDtlList(newDtl);
-                            newVcs.add(data);
-                            hmapOriginVcs.remove(kName);
+                            dtl2.setStatus(statusActive);
+                            dtl2.setDtlStatus(statusActive);
+                            newDtl.add(dtl2);
                         }
+                        Set<String> dtlKName = hmapOriginDtl.keySet();
+                        for (String k2 : dtlKName) {
+                            ShelfProductDtl dtl2 = (ShelfProductDtl) hmapOriginDtl.get(k2);
+                            dtl2.setStatus(statusInactive);
+                            dtl2.setCreateAt(sysdate);
+                            dtl2.setCreateBy(username);
+                            dtl2.setDtlStatus(statusInactive);
+                            newDtl.add(dtl2);
+                        }
+                        data.setShelfProductDtlList(newDtl);
+                        data.setCompStatus(statusActive);
+                        newVcs.add(data);
+                        hmapOriginVcs.remove(kName);
                     }
-                    Set<String> kNames = hmapOriginVcs.keySet();
-                    for (String kName : kNames) {
-                        ShelfProductVcs data = (ShelfProductVcs) hmapOriginVcs.get(kName);
+                }
+                Set<String> kNames = hmapOriginVcs.keySet();
+                for (String kName : kNames) {
+                    ShelfProductVcs data = (ShelfProductVcs) hmapOriginVcs.get(kName);
+                    if (prodVer == data.getVerProd()) {
                         if (null != data.getCompUuid()) {
-                            data.setStatus(statusInactive);
-                        } else {
-                            data.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
-                        }
+                            data.setCompStatus(statusInactive);
+                        }/* else if (null == data.getCompUuid()) {
+                                data.setCompStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
+                            }*/
                         data.setCreateAt(sysdate);
                         data.setCreateBy(username);
                         newVcs.add(data);
                     }
-                    p2.setProdCode(prod.getProdCode());
-                    p2.setProdName(prod.getProdName());
-                    prod = p2;
-                    prod.setUpdateBy(username);
-                    prod.setUpdateAt(sysdate);
-                    prod.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
-//                prod.setStatus(StatusUtils.getActive());
-                    prod.setShelfProductVcsList(newVcs);
-                } else {
-                    prod.setCreateBy(username);
-                    prod.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
-                    prod.setShelfProductVcsList(listVcs);
                 }
+                p2.setProdCode(prod.getProdCode());
+                p2.setProdName(prod.getProdName());
+                prod = p2;
+                prod.setUpdateBy(username);
+                prod.setUpdateAt(sysdate);
+                prod.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
+//                prod.setStatus(StatusUtils.getActive());
+                prod.setShelfProductVcsList(newVcs);
+            } else {
+                prod.setCreateBy(username);
+                prod.setStatus(StatusUtils.getInprogress(dbEnv).getStatusCode());
+                prod.setShelfProductVcsList(listVcs);
             }
-        } catch (JSONException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
         }
         return prod;
     }
@@ -637,9 +666,8 @@ public class ProductUtils {
             dtl.setDtlStatus(statusActive);
             return dtl;
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
-            return null;
+            logger.info(e.getMessage());
+            throw e;
         }
     }
 
@@ -685,15 +713,17 @@ public class ProductUtils {
         ret.put("groupProduct", "");
         ret.put("operDepartment", "");
         ret.put("prodDepartment", "");
+        ret.put("tmpVer", "");
+        ret.put("ProdFooter", "");
         return ret;
     }
 
-    public static JSONObject getProductDataByProduct(String dbEnv, List<ShelfProductVcs> shelfProductVcsList) throws NullPointerException {
+    public static JSONObject getProductDataByProduct(String dbEnv, List<ShelfProductVcs> shelfProductVcsList) throws ParseException {
         JSONObject retData = new JSONObject();
 //        List<ShelfProductVcs> shelfProductVcsList = shelfProduct.getShelfProductVcsList();
         try {
-            Object[] prodVerArr = ProductUtils.orderProductByVersion(shelfProductVcsList);
-            List<ShelfProductVcs> vcsList = (List<ShelfProductVcs>) prodVerArr[0];
+            List<ShelfProductVcs>[] prodVerArr = ProductUtils.orderProductByVersion(shelfProductVcsList);
+            List<ShelfProductVcs> vcsList = prodVerArr[0];
 //        List<ShelfProductDtl> dtlList = new ArrayList<>();
 //        for (ShelfProductVcs vcs : vcsList) {
 //            if (vcs.getCompUuid() == null) {
@@ -803,7 +833,9 @@ public class ProductUtils {
                         prod.put("company", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getCompany()));
                         prod.put("prodCode", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdCode()));
                         prod.put("prodName", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdName()));
-                        prod.put("verProd", ValidUtils.obj2Int(shelfProductVcs.getVerProd()));
+                        prod.put("verProd", (shelfProductVcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(shelfProductVcs.getVerProd())));
+                        prod.put("tmpVer", ValidUtils.obj2Int(shelfProductVcs.getVerTem()));    //เพิ่ม 07/07/2020
+
                         retData.put("product", prod);
                     }
                 }
@@ -814,9 +846,9 @@ public class ProductUtils {
             retData.put("themeList", ThemeUtils.getThemeList(dbEnv, false));
 //            retData.put("templateList", TemplateUtils.getTemplateList(dbEnv));
             retData.put("templateList", new TemplateUtils().getTemplateListByStatus(dbEnv, statusActive));
-        } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            throw e;
         }
         return retData;
     }
@@ -966,13 +998,13 @@ public class ProductUtils {
                 }
             }
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            throw e;
         }
         return list;
     }
 
-    public static JSONArray groupProduct(String dbEnv, ShelfProduct pd) {
+    public static JSONArray groupProduct(String dbEnv, ShelfProduct pd) throws ParseException {
         HashMap hmp = new HashMap();
         JSONArray resp = new JSONArray();
         try {
@@ -1002,163 +1034,174 @@ public class ProductUtils {
                 resp.put(retData);
             }
         } catch (JSONException | NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            throw e;
         }
         return resp;
     }
 
-    public static JSONObject getProductFrontEnd(String dbEnv, ShelfProduct pd) {
+    public static JSONObject getProductFrontEnd(String dbEnv, ShelfProduct pd) throws ParseException {
         JSONObject resp = new JSONObject();
-        List<JSONObject> arr = new ArrayList<JSONObject>();
-        Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
-        String shelfTmpVcs = "";
-        for (ShelfProductVcs vcs : pd.getShelfProductVcsList()) {
-            if (vcs.getStatus() == statusActive) {
-                if (null == vcs.getCompUuid()) {
-                    JSONObject jdtl = new JSONObject();
-                    for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
-                        if (dtl.getStatus() == statusActive) {
-                            jdtl.put(dtl.getLkCode(), ValidUtils.null2NoData(dtl.getLkValue()));
-                        }
-                    }
-                    jdtl.put("uuid", vcs.getProdUuid().getUuid());
-                    jdtl.put("prodId", vcs.getProdUuid().getUuid());
-                    jdtl.put("prodVer", vcs.getVerProd());
-                    jdtl.put("trnId", getUUID());
-                    jdtl.put("prodCode", vcs.getProdUuid().getProdCode());
-                    jdtl.put("prodName", vcs.getProdUuid().getProdName());
-//                    jdtl.put("productProcessor", null != vcs.getProdUuid() ? vcs.getProdUuid().getAttr1() : "");
-//                    jdtl.put("productController", null != vcs.getProdUuid() ? vcs.getProdUuid().getAttr2() : "");
-                    jdtl.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
-                    jdtl.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
-                    jdtl.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
-                    resp.put("product", jdtl);
-                    JSONObject jtemplate = new JSONObject();
-                    ShelfTmpDao tmpDao = new ShelfTmpDao();
-                    ShelfTmp tmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
-                    if (null != tmp) {
-                        jtemplate.put("uuid", tmp.getUuid());
-                        jtemplate.put("name", tmp.getTmpName());
-                        JSONArray jarray = new JSONArray();
-                        for (ShelfTmpVcs tv : tmp.getShelfTmpVcsList()) {
-//                            ดึงที่ version ของ vcs ที่มาจาก product_vcs //Not sure  ?
-                            if (tv.getVersion() == vcs.getVerTem()) {
-                                jarray = new JSONArray(tv.getAttr1());
-                            }
-                        }
-                        List<JSONObject> listTmpComp = new ArrayList<>();
-                        for (int i = 0; i < jarray.length(); i++) {
-                            listTmpComp.add(jarray.getJSONObject(i));
-                        }
-                        Utils.sortJSONObjectByKey(listTmpComp, "seqNo", true);
-                        jtemplate.put("component", jarray);
-                    }
-                    resp.put("template", jtemplate);
-                    Gson gson = new Gson();
-                    JSONObject json = new JSONObject(gson.toJson(null != vcs.getThemeUuid() ? vcs.getThemeUuid().getValue() : new JSONObject()));
-                    resp.put("theme", json.has("info") ? json.getJSONObject("info") : json);
-                } else {
-                    ShelfTmpDao tmpDao = new ShelfTmpDao();
-                    ShelfTmp shelfTmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
-//                List<ShelfTmpDetail> tmpDtl = new ArrayList<>();
-                    if (shelfTmpVcs.equalsIgnoreCase("")) {
-                        for (ShelfTmpVcs tmpVcs : shelfTmp.getShelfTmpVcsList()) {
-                            if (tmpVcs.getVersion() == vcs.getVerTem()) {
-                                shelfTmpVcs = tmpVcs.getUuid();
-                                break;
-                            }
-                        }
-                    }
-
-                    ShelfTmpDetailDao shelfTmpDtlDao = new ShelfTmpDetailDao();
-                    ShelfComp shelfComp = shelfTmpDtlDao.getShelfComponentByCompUUIDAndTemplateVCS(dbEnv, vcs.getCompUuid().getUuid(), shelfTmpVcs);
-//                    Product Info & Customer Info
-                    if ("007".equalsIgnoreCase(vcs.getCompUuid().getCompCode())
-                            || "009".equalsIgnoreCase(vcs.getCompUuid().getCompCode()) && null != vcs.getCompStatus() && vcs.getCompStatus().equals(statusActive)) {
-                        JSONObject tmp = new JSONObject();
-                        JSONObject tmp2 = new JSONObject();
+        List<JSONObject> arr = new ArrayList<>();
+        try {
+            boolean isActive = false;
+            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+            Integer wait2pause = StatusUtils.getWaittoPause(dbEnv).getStatusCode();
+            Integer wait2Terminate = StatusUtils.getWaittoTerminate(dbEnv).getStatusCode();
+            String shelfTmpVcs = "";
+            for (ShelfProductVcs vcs : pd.getShelfProductVcsList()) {
+                if ((vcs.getStatus() == statusActive) || (vcs.getStatus() == wait2pause)
+                        || (vcs.getStatus() == wait2Terminate && StatusUtils.isWaitTerminate(vcs.getState(), statusActive))) {
+                    isActive = true;
+                    if (null == vcs.getCompUuid()) {
+                        JSONObject jdtl = new JSONObject();
                         for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
                             if (dtl.getStatus() == statusActive) {
-                                tmp.put(dtl.getLkCode().trim(), dtl.getLkValue());
-                                tmp2.put(dtl.getLkCode().trim(), dtl.getLkLabel());
-//                                tmp.put(dtl.getLkCode(), dtl.getLkValue());
+                                jdtl.put(dtl.getLkCode(), ValidUtils.null2NoData(dtl.getLkValue()));
                             }
                         }
-                        List<ShelfCompDtl> shelfCompDtlList = vcs.getCompUuid().getShelfCompDtlList();
-                        shelfCompDtlList.sort(Comparator.comparing(ShelfCompDtl::getSeq));
-                        JSONObject ret = ProductUtils.getInitialProductComponentByUUID(dbEnv, shelfComp, shelfCompDtlList, false, ((null != vcs.getProdUuid()) ? vcs.getProdUuid().getUuid() : null));
-                        JSONObject jdtl = new JSONObject();
-                        jdtl.put("uuid", vcs.getUuid());
-                        jdtl.put("page", shelfComp.getAttr2());
-                        jdtl.put("compUuid", shelfComp.getUuid());
-                        jdtl.put("seqNo", shelfComp.getSeqNo());
-                        jdtl.put("compName", shelfComp.getCompName());
-                        JSONArray array = ret.getJSONArray("subComp");
-                        for (int i = 0; i < array.length(); i++) {
-                            JSONObject jtem = array.getJSONObject(i);
-                            if (jtem.has("id")) {
-                                jtem.put("value", tmp.has(jtem.getString("id").trim()) ? tmp.getString(jtem.getString("id").trim()) : "");
-                            } else if (jtem.has("details")) {
-                                if (jtem.has("value")) {
-                                    jtem.put("value", tmp.has(jtem.getString("subId").trim()) ? tmp.getString(jtem.getString("subId").trim()) : "");
+                        jdtl.put("uuid", vcs.getProdUuid().getUuid());
+                        jdtl.put("prodId", vcs.getProdUuid().getUuid());
+                        jdtl.put("prodVer", (vcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(vcs.getVerProd())));
+                        jdtl.put("trnId", getUUID());
+                        jdtl.put("prodCode", vcs.getProdUuid().getProdCode());
+                        jdtl.put("prodName", vcs.getProdUuid().getProdName());
+//                    jdtl.put("productProcessor", null != vcs.getProdUuid() ? vcs.getProdUuid().getAttr1() : "");
+//                    jdtl.put("productController", null != vcs.getProdUuid() ? vcs.getProdUuid().getAttr2() : "");
+                        jdtl.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
+                        jdtl.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
+                        jdtl.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
+                        resp.put("product", jdtl);
+                        JSONObject jtemplate = new JSONObject();
+                        ShelfTmpDao tmpDao = new ShelfTmpDao();
+                        ShelfTmp tmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
+                        if (null != tmp) {
+                            jtemplate.put("uuid", tmp.getUuid());
+                            jtemplate.put("name", tmp.getTmpName());
+                            JSONArray jarray = new JSONArray();
+                            for (ShelfTmpVcs tv : tmp.getShelfTmpVcsList()) {
+//                            ดึงที่ version ของ vcs ที่มาจาก product_vcs //Not sure  ?
+                                if (tv.getVersion() == vcs.getVerTem()) {
+                                    jarray = new JSONArray(tv.getAttr1());
                                 }
-                                JSONArray array2 = jtem.getJSONArray("details");
-                                for (int j = 0; j < array2.length(); j++) {
-                                    JSONObject jtem2 = array2.getJSONObject(j);
-                                    if (jtem2.has("id")) {
-                                        jtem2.put("value", tmp.has(jtem2.getString("id").trim()) ? tmp.getString(jtem2.getString("id").trim()) : "");
-                                    } else if (jtem2.has("details")) {
-                                        if (jtem2.has("value")) {
-                                            jtem2.put("value", tmp.has(jtem2.getString("subId").trim()) ? tmp.getString(jtem2.getString("subId").trim()) : "");
-                                        }
-//                                        System.out.println("array3 : " + jtem2.getJSONArray("details"));
-                                        JSONArray array3 = jtem2.getJSONArray("details");
-                                        for (int k = 0; k < array3.length(); k++) {
-                                            JSONObject jtem3 = array3.getJSONObject(k);
-                                            if (jtem3.has("id")) {
-                                                jtem3.put("value", tmp.has(jtem3.getString("id").trim()) ? tmp.getString(jtem3.getString("id").trim()) : "");
-                                                if (("radioList".equalsIgnoreCase(jtem3.getString("id"))
-                                                        || "summaryList".equalsIgnoreCase(jtem3.getString("id"))
-                                                        || "packageList".equalsIgnoreCase(jtem3.getString("id"))) && !"".equals(jtem3.get("value"))) {
-                                                    jtem3.put("data", new JSONArray(jtem3.getString("value")));
-                                                }
+                            }
+                            List<JSONObject> listTmpComp = new ArrayList<>();
+                            for (int i = 0; i < jarray.length(); i++) {
+                                listTmpComp.add(jarray.getJSONObject(i));
+                            }
+                            Utils.sortJSONObjectByKey(listTmpComp, "seqNo", true);
+                            jtemplate.put("component", jarray);
+                        }
+                        resp.put("template", jtemplate);
+                        Gson gson = new Gson();
+                        JSONObject json = new JSONObject(gson.toJson(null != vcs.getThemeUuid() ? vcs.getThemeUuid().getValue() : new JSONObject()));
+                        resp.put("theme", json.has("info") ? json.getJSONObject("info") : json);
+                    } else {
+                        ShelfTmpDao tmpDao = new ShelfTmpDao();
+                        ShelfTmp shelfTmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
+//                List<ShelfTmpDetail> tmpDtl = new ArrayList<>();
+                        if (shelfTmpVcs.equalsIgnoreCase("")) {
+                            for (ShelfTmpVcs tmpVcs : shelfTmp.getShelfTmpVcsList()) {
+                                if (tmpVcs.getVersion() == vcs.getVerTem()) {
+                                    shelfTmpVcs = tmpVcs.getUuid();
+                                    break;
+                                }
+                            }
+                        }
 
-                                            } else if (jtem3.has("details")) {
-                                                if (jtem3.has("value")) {
-                                                    jtem3.put("value", tmp.has(jtem3.getString("subId").trim()) ? tmp.getString(jtem3.getString("subId").trim()) : "");
+                        ShelfTmpDetailDao shelfTmpDtlDao = new ShelfTmpDetailDao();
+                        ShelfComp shelfComp = shelfTmpDtlDao.getShelfComponentByCompUUIDAndTemplateVCS(dbEnv, vcs.getCompUuid().getUuid(), shelfTmpVcs, true);
+                        if (shelfComp != null) {
+//                    Product Info & Customer Info
+                            if (("007".equalsIgnoreCase(vcs.getCompUuid().getCompCode())
+                                    || "009".equalsIgnoreCase(vcs.getCompUuid().getCompCode())
+                                    || "012".equalsIgnoreCase(vcs.getCompUuid().getCompCode())
+                                    || "013".equalsIgnoreCase(vcs.getCompUuid().getCompCode())) && null != vcs.getCompStatus() && vcs.getCompStatus().equals(statusActive)) {
+                                JSONObject tmp = new JSONObject();
+                                JSONObject tmp2 = new JSONObject();
+                                for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
+                                    if (dtl.getStatus() == statusActive) {
+                                        tmp.put(dtl.getLkCode().trim(), dtl.getLkValue());
+                                        tmp2.put(dtl.getLkCode().trim(), dtl.getLkLabel());
+//                                tmp.put(dtl.getLkCode(), dtl.getLkValue());
+                                    }
+                                }
+                                List<ShelfCompDtl> shelfCompDtlList = vcs.getCompUuid().getShelfCompDtlList();
+                                shelfCompDtlList.sort(Comparator.comparing(ShelfCompDtl::getSeq));
+                                JSONObject ret = ProductUtils.getInitialProductComponentByUUID(dbEnv, shelfComp, shelfCompDtlList, false, ((null != vcs.getProdUuid()) ? vcs.getProdUuid().getUuid() : null));
+                                JSONObject jdtl = new JSONObject();
+                                jdtl.put("uuid", vcs.getUuid());
+                                jdtl.put("page", shelfComp.getAttr2());
+                                jdtl.put("compUuid", shelfComp.getUuid());
+                                jdtl.put("seqNo", shelfComp.getSeqNo());
+                                jdtl.put("compName", shelfComp.getCompName());
+                                JSONArray array = ret.getJSONArray("subComp");
+                                for (int i = 0; i < array.length(); i++) {
+                                    JSONObject jtem = array.getJSONObject(i);
+                                    if (jtem.has("id")) {
+                                        jtem.put("value", tmp.has(jtem.getString("id").trim()) ? tmp.getString(jtem.getString("id").trim()) : "");
+                                    } else if (jtem.has("details")) {
+                                        if (jtem.has("value")) {
+                                            jtem.put("value", tmp.has(jtem.getString("subId").trim()) ? tmp.getString(jtem.getString("subId").trim()) : "");
+                                        }
+                                        JSONArray array2 = jtem.getJSONArray("details");
+                                        for (int j = 0; j < array2.length(); j++) {
+                                            JSONObject jtem2 = array2.getJSONObject(j);
+                                            if (jtem2.has("id")) {
+                                                jtem2.put("value", tmp.has(jtem2.getString("id").trim()) ? tmp.getString(jtem2.getString("id").trim()) : "");
+                                            } else if (jtem2.has("details")) {
+                                                if (jtem2.has("value")) {
+                                                    jtem2.put("value", tmp.has(jtem2.getString("subId").trim()) ? tmp.getString(jtem2.getString("subId").trim()) : "");
                                                 }
-//                                                System.out.println("array4 : " + jtem3.getJSONArray("details"));
-                                                JSONArray array4 = jtem3.getJSONArray("details");
-                                                for (int l = 0; l < array4.length(); l++) {
-                                                    JSONObject jtem4 = array4.getJSONObject(l);
-                                                    if (jtem4.has("id")) {
-                                                        jtem4.put("value", tmp.has(jtem4.getString("id").trim()) ? tmp.getString(jtem4.getString("id").trim()) : "");
-                                                    } else if (jtem4.has("details")) {
-                                                        if (jtem4.has("value")) {
-                                                            jtem4.put("value", tmp.has(jtem4.getString("subId").trim()) ? tmp.getString(jtem4.getString("subId").trim()) : "");
+//                                        System.out.println("array3 : " + jtem2.getJSONArray("details"));
+                                                JSONArray array3 = jtem2.getJSONArray("details");
+                                                for (int k = 0; k < array3.length(); k++) {
+                                                    JSONObject jtem3 = array3.getJSONObject(k);
+                                                    if (jtem3.has("id")) {
+                                                        jtem3.put("value", tmp.has(jtem3.getString("id").trim()) ? tmp.getString(jtem3.getString("id").trim()) : "");
+                                                        if (("radioList".equalsIgnoreCase(jtem3.getString("id"))
+                                                                || "summaryList".equalsIgnoreCase(jtem3.getString("id"))
+                                                                || "packageList".equalsIgnoreCase(jtem3.getString("id"))) && !"".equals(jtem3.get("value"))) {
+                                                            jtem3.put("data", new JSONArray(jtem3.getString("value")));
                                                         }
+
+                                                    } else if (jtem3.has("details")) {
+                                                        if (jtem3.has("value")) {
+                                                            jtem3.put("value", tmp.has(jtem3.getString("subId").trim()) ? tmp.getString(jtem3.getString("subId").trim()) : "");
+                                                        }
+//                                                System.out.println("array4 : " + jtem3.getJSONArray("details"));
+                                                        JSONArray array4 = jtem3.getJSONArray("details");
+                                                        for (int l = 0; l < array4.length(); l++) {
+                                                            JSONObject jtem4 = array4.getJSONObject(l);
+                                                            if (jtem4.has("id")) {
+                                                                jtem4.put("value", tmp.has(jtem4.getString("id").trim()) ? tmp.getString(jtem4.getString("id").trim()) : "");
+                                                            } else if (jtem4.has("details")) {
+                                                                if (jtem4.has("value")) {
+                                                                    jtem4.put("value", tmp.has(jtem4.getString("subId").trim()) ? tmp.getString(jtem4.getString("subId").trim()) : "");
+                                                                }
 //                                                        System.out.println("array5 : " + jtem4.getJSONArray("details"));
-                                                        JSONArray array5 = jtem4.getJSONArray("details");
-                                                        for (int m = 0; m < array5.length(); m++) {
-                                                            JSONObject jtem5 = array5.getJSONObject(m);
-                                                            if (jtem5.has("id")) {
-                                                                jtem5.put("value", tmp.has(jtem5.getString("id").trim()) ? tmp.getString(jtem5.getString("id").trim()) : "");
-                                                                if (jtem5.getString("id").startsWith("chkIncome")
-                                                                        || jtem5.getString("id").startsWith("chkExpend")
-                                                                        || jtem5.getString("id").startsWith("chkDebt")) {
-                                                                    jtem5.put("label", tmp2.has(jtem5.getString("id").trim()) ? tmp2.getString(jtem5.getString("id").trim()) : "");
-                                                                }
-                                                            } else if (jtem5.has("details")) {
-                                                                if (jtem5.has("value")) {
-                                                                    jtem5.put("value", tmp.has(jtem5.getString("subId").trim()) ? tmp.getString(jtem5.getString("subId").trim()) : "");
-                                                                }
+                                                                JSONArray array5 = jtem4.getJSONArray("details");
+                                                                for (int m = 0; m < array5.length(); m++) {
+                                                                    JSONObject jtem5 = array5.getJSONObject(m);
+                                                                    if (jtem5.has("id")) {
+                                                                        jtem5.put("value", tmp.has(jtem5.getString("id").trim()) ? tmp.getString(jtem5.getString("id").trim()) : "");
+                                                                        if (jtem5.getString("id").startsWith("chkIncome")
+                                                                                || jtem5.getString("id").startsWith("chkExpend")
+                                                                                || jtem5.getString("id").startsWith("chkDebt")) {
+                                                                            jtem5.put("label", tmp2.has(jtem5.getString("id").trim()) ? tmp2.getString(jtem5.getString("id").trim()) : "");
+                                                                        }
+                                                                    } else if (jtem5.has("details")) {
+                                                                        if (jtem5.has("value")) {
+                                                                            jtem5.put("value", tmp.has(jtem5.getString("subId").trim()) ? tmp.getString(jtem5.getString("subId").trim()) : "");
+                                                                        }
 //                                                                System.out.println("array6 : " + jtem5.getJSONArray("details"));
-                                                                JSONArray array6 = jtem5.getJSONArray("details");
-                                                                for (int n = 0; n < array6.length(); n++) {
-                                                                    JSONObject jtem6 = array6.getJSONObject(n);
-                                                                    if (jtem6.has("id")) {
-                                                                        jtem6.put("value", tmp.has(jtem6.getString("id").trim()) ? tmp.getString(jtem6.getString("id").trim()) : "");
+                                                                        JSONArray array6 = jtem5.getJSONArray("details");
+                                                                        for (int n = 0; n < array6.length(); n++) {
+                                                                            JSONObject jtem6 = array6.getJSONObject(n);
+                                                                            if (jtem6.has("id")) {
+                                                                                jtem6.put("value", tmp.has(jtem6.getString("id").trim()) ? tmp.getString(jtem6.getString("id").trim()) : "");
+                                                                            }
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -1169,40 +1212,47 @@ public class ProductUtils {
                                         }
                                     }
                                 }
-                            }
-                        }
-                        jdtl.put("details", array);
+                                jdtl.put("details", array);
 //                        arr.put(jdtl);
-                        arr.add(jdtl);
-                    } else {
-                        if (null != vcs.getCompStatus() && vcs.getCompStatus().equals(statusActive)) {
-                            JSONObject jdtl = new JSONObject();
-                            jdtl.put("uuid", vcs.getUuid());
-                            jdtl.put("compUuid", shelfComp.getUuid());
-                            jdtl.put("page", shelfComp.getAttr2());
-                            jdtl.put("seqNo", shelfComp.getSeqNo());
-                            jdtl.put("compName", shelfComp.getCompName());
-                            for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
-                                if (dtl.getStatus() == statusActive) {
-                                    if (null != dtl.getAttr1() && !"".equals(dtl.getAttr1())) {
-                                        JSONObject obj = new JSONObject();
-                                        obj.put("value", dtl.getLkValue());
-                                        obj.put("attr1", dtl.getAttr1());
-                                        jdtl.put(dtl.getLkCode(), obj.toString());
-                                    } else {
-                                        jdtl.put(dtl.getLkCode(), dtl.getLkValue());
+                                arr.add(jdtl);
+                            } else {
+                                if (null != vcs.getCompStatus() && vcs.getCompStatus().equals(statusActive)) {
+                                    JSONObject jdtl = new JSONObject();
+                                    jdtl.put("uuid", vcs.getUuid());
+                                    jdtl.put("compUuid", shelfComp.getUuid());
+                                    jdtl.put("page", shelfComp.getAttr2());
+                                    jdtl.put("seqNo", shelfComp.getSeqNo());
+                                    jdtl.put("compName", shelfComp.getCompName());
+                                    for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
+                                        if (dtl.getStatus() == statusActive) {
+                                            if (null != dtl.getAttr1() && !"".equals(dtl.getAttr1())) {
+                                                JSONObject obj = new JSONObject();
+                                                obj.put("value", dtl.getLkValue());
+                                                obj.put("attr1", dtl.getAttr1());
+                                                jdtl.put(dtl.getLkCode(), obj.toString());
+                                            } else {
+                                                jdtl.put(dtl.getLkCode(), dtl.getLkValue());
+                                            }
+                                        }
                                     }
+//                        arr.put(jdtl);
+                                    arr.add(jdtl);
                                 }
                             }
-//                        arr.put(jdtl);
-                            arr.add(jdtl);
                         }
                     }
                 }
             }
+            if (isActive) {
+                Utils.sortJSONObjectByKey(arr, "seqNo", true);
+                resp.put("component", arr);
+            } else {
+                resp.put("status", 500)
+                        .put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0001"));
+            }
+        } catch (NullPointerException | HibernateException e) {
+            throw e;
         }
-        Utils.sortJSONObjectByKey(arr, "seqNo", true);
-        resp.put("component", arr);
         return resp;
     }
 
@@ -1227,11 +1277,11 @@ public class ProductUtils {
         return (groups.contains(subId) && array.contains(id));
     }
 
-    public static Object[] orderProductByVersion(List<ShelfProductVcs> shelfProductVcsList) {
+    public static List<ShelfProductVcs>[] orderProductByVersion(List<ShelfProductVcs> shelfProductVcsList) {
         Map<Integer, List<ShelfProductVcs>> shelfProductVcsListGrouped = shelfProductVcsList.stream().collect(Collectors.groupingBy(w -> w.getVerProd()));
         List<Integer> sortedKName = new ArrayList(shelfProductVcsListGrouped.keySet());
         Collections.sort(sortedKName, Collections.reverseOrder());
-        Object[] listData = new Object[shelfProductVcsListGrouped.size()];
+        List<ShelfProductVcs>[] listData = new ArrayList[shelfProductVcsListGrouped.size()];
         int i = 0;
         try {
             if (sortedKName.get(sortedKName.size() - 1) == 0) {
@@ -1244,8 +1294,8 @@ public class ProductUtils {
                 i++;
             }
         } catch (NullPointerException e) {
-            logger.error("" + e);
-            e.printStackTrace();
+            logger.info(e.getMessage());
+            //e.printStackTrace();
         }
         return listData;
     }
@@ -1266,100 +1316,105 @@ public class ProductUtils {
                     flagDel = false;
                 }
             }
-            Object[] prodVerArr = ProductUtils.orderProductByVersion(shelfProductVcsList);
-            List<ShelfProductVcs> vcsList = (List<ShelfProductVcs>) prodVerArr[0];
+            List<ShelfProductVcs>[] prodVerArr = ProductUtils.orderProductByVersion(shelfProductVcsList);
+            List<ShelfProductVcs> vcsList = prodVerArr[0];
             for (int i = 0; i < vcsList.size(); i++) {
                 ShelfProductVcs shelfProductVcs = vcsList.get(i);
-                if (null == shelfProductVcs.getCompStatus()) {
-                    if (shelfProductVcs.getCompStatus() == null) {
-                        JSONObject prod = getInitialProduct();
-                        prod.put("uuid", shelfProductVcs.getProdUuid().getUuid());
-                        for (ShelfProductDtl prodDtl : shelfProductVcs.getShelfProductDtlList()) {
-                            prod.put(prodDtl.getLkCode(), ValidUtils.null2NoData(prodDtl.getLkValue()));
-                        }
-                        ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, shelfProductVcs.getTemUuid());
-                        StatusUtils.Status status = StatusUtils.getStatusByCode(dbEnv, String.valueOf(shelfProductVcs.getStatus()));
-                        prod.put("status", shelfProductVcs.getStatus());
-                        prod.put("statusNameTh", status.getStatusNameTh() == null ? "" : status.getStatusNameTh());
-                        prod.put("statusNameEn", status.getStatusNameEn() == null ? "" : status.getStatusNameEn());
-                        prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
-                        prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
-                        prod.put("businessLine", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getBusinessLine()));
-                        prod.put("businessDept", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getBusinessDept()));
-                        prod.put("company", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getCompany()));
-                        prod.put("verProd", ValidUtils.obj2Int(shelfProductVcs.getVerProd()));
-                        prod.put("edit", flagEdit);
-                        prod.put("delete", flagDel);
-                        prod.put("prodCode", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdCode()));
-                        prod.put("prodName", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdName()));
-                        prod.put("updateDate", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(shelfProductVcs.getUpdateAt(), "dd/MM/yyyy"), DateUtils.getDisplayEnDate(shelfProductVcs.getCreateAt(), "dd/MM/yyyy")));
-                        prod.put("updateBy", ValidUtils.null2NoData(shelfProductVcs.getUpdateBy()));
-/*เพิ่ม 05/06/2020*/      prod.put("CreateBy", ValidUtils.null2NoData(shelfProductVcs.getCreateBy()));
-                        retData.put("product", prod);
-                        break;
+//                if (null == shelfProductVcs.getCompStatus()) {
+                if (shelfProductVcs.getCompUuid() == null) {
+                    JSONObject prod = getInitialProduct();
+                    prod.put("uuid", shelfProductVcs.getProdUuid().getUuid());
+                    for (ShelfProductDtl prodDtl : shelfProductVcs.getShelfProductDtlList()) {
+                        prod.put(prodDtl.getLkCode(), ValidUtils.null2NoData(prodDtl.getLkValue()));
                     }
+                    ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, shelfProductVcs.getTemUuid());
+                    StatusUtils.Status status = StatusUtils.getStatusByCode(dbEnv, String.valueOf(shelfProductVcs.getStatus()));
+                    prod.put("status", shelfProductVcs.getStatus());
+                    prod.put("statusNameTh", status.getStatusNameTh() == null ? "" : status.getStatusNameTh());
+                    prod.put("statusNameEn", status.getStatusNameEn() == null ? "" : status.getStatusNameEn());
+                    prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
+                    prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
+                    prod.put("businessLine", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getBusinessLine()));
+                    prod.put("businessDept", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getBusinessDept()));
+                    prod.put("company", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getCompany()));
+                    prod.put("verProd", (shelfProductVcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(shelfProductVcs.getVerProd())));
+                    prod.put("edit", flagEdit);
+                    prod.put("delete", flagDel);
+                    prod.put("prodCode", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdCode()));
+                    prod.put("prodName", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdName()));
+                    prod.put("updateDate", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(shelfProductVcs.getUpdateAt(), "yyyy-MM-dd"), DateUtils.getDisplayEnDate(shelfProductVcs.getCreateAt(), "yyyy-MM-dd")));
+                    prod.put("updateBy", ValidUtils.null2Separator(shelfProductVcs.getUpdateBy(), shelfProductVcs.getCreateBy()));
+                    /*เพิ่ม 05/06/2020*/ prod.put("CreateBy", ValidUtils.null2NoData(shelfProductVcs.getCreateBy()));
+                    prod.put("tmpVer", ValidUtils.obj2Int(shelfProductVcs.getVerTem()));    //เพิ่ม 07/07/2020
+                    retData.put("product", prod);
+                    break;
                 }
+//                }
             }
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+        } catch (NullPointerException | HibernateException e) {
+            //e.printStackTrace();
+            logger.info(e.getMessage());
         }
         return retData;
     }
 
-    public static JSONArray infoProducts(String dbEnv, String prodUuid, int status, int verProd) {
+    public static JSONArray infoProducts(String dbEnv, String prodUuid, int status, int verProd) throws ParseException {
         JSONArray productList = new JSONArray();
 
 //            ShelfProductDao shelfProductDao = new ShelfProductDao();
 //            ShelfProduct shelfProduct = shelfProductDao.getShelfProductByUUID(dbEnv, prodUuid);
         ShelfProductVcsDao shelfProductVcsDao = new ShelfProductVcsDao();
-        List<ShelfProductVcs> shelfProductVcs = shelfProductVcsDao.getListShelfProduct(dbEnv, prodUuid, status, verProd);
-        if (shelfProductVcs.size() > 0) {
+        try {
+//            List<ShelfProductVcs> shelfProductVcs = shelfProductVcsDao.getListShelfProduct(dbEnv, prodUuid, status, verProd);
+            Integer arStatus[] = {status};
+            List<ShelfProductVcs> shelfProductVcs = shelfProductVcsDao.getListShelfProductVcsListByStatus(dbEnv, prodUuid, verProd, arStatus);
+            if (shelfProductVcs.size() > 0) {
 //            System.out.println("size : " + shelfProductVcs.size());
-            Object[] data = ProductUtils.orderProductByVersion(shelfProductVcs);
+                List<ShelfProductVcs>[] data = ProductUtils.orderProductByVersion(shelfProductVcs);
 //            JSONObject retData = ProductUtils.getProductDataByProduct(dbEnv, shelfProduct);
 //            Object[] data = ProductUtils.orderProductByVersion(shelfProduct.getShelfProductVcsList());
 //            int statusVal = 0;
-            for (int i = 0; i < data.length; i++) {
+                for (int i = 0; i < data.length; i++) {
 //                JSONObject product = new JSONObject();
-                List<ShelfProductVcs> vcsList = (List<ShelfProductVcs>) data[i];
-                List<ShelfProductDtl> dtlList = new ArrayList<>();
-                JSONObject prod = ProductUtils.getInitialProduct();
-                ShelfProductVcs compVcs = new ShelfProductVcs();
-                for (ShelfProductVcs vcs : vcsList) {
-                    if (vcs.getCompUuid() == null) {
-                        dtlList = vcs.getShelfProductDtlList();
-                        compVcs = vcs;
+                    List<ShelfProductVcs> vcsList = data[i];
+                    List<ShelfProductDtl> dtlList = new ArrayList<>();
+                    JSONObject prod = ProductUtils.getInitialProduct();
+                    ShelfProductVcs compVcs = new ShelfProductVcs();
+                    for (ShelfProductVcs vcs : vcsList) {
+                        if (vcs.getCompUuid() == null) {
+                            dtlList = vcs.getShelfProductDtlList();
+                            compVcs = vcs;
 //                        statusVal = vcs.getStatus();
 //                        verProd = ValidUtils.obj2Int(vcs.getVerProd());
 //                        product.put("productProcessor", null != shelfProduct.getAttr1() ? shelfProduct.getAttr1() : "");
 //                        product.put("productController", null != shelfProduct.getAttr2() ? shelfProduct.getAttr2() : "");
-                        break;
+                            break;
+                        }
                     }
-                }
-                prod.put("uuid", compVcs.getProdUuid().getUuid());
-                for (ShelfProductDtl dtl : dtlList) {
-                    prod.put(dtl.getLkCode(), ValidUtils.null2NoData(dtl.getLkValue()));
-                }
+                    prod.put("uuid", compVcs.getProdUuid().getUuid());
+                    for (ShelfProductDtl dtl : dtlList) {
+                        prod.put(dtl.getLkCode(), ValidUtils.null2NoData(dtl.getLkValue()));
+                    }
 //                for (ShelfProductDtl prodDtl : compVcs.getShelfProductDtlList()) {
 //                    prod.put(prodDtl.getLkCode(), prodDtl.getLkValue());
 //                }
-                ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, compVcs.getTemUuid());
-                StatusUtils.Status s = StatusUtils.getStatusByCode(dbEnv, String.valueOf(compVcs.getStatus()));
-                prod.put("status", s.getStatusCode() == null ? "" : s.getStatusCode());
-                prod.put("statusName", s.getStatusNameTh() == null ? "" : s.getStatusNameTh());
-                prod.put("statusNameEn", s.getStatusNameEn() == null ? "" : s.getStatusNameEn());
-                prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
-                prod.put("theme", compVcs.getThemeUuid().getUuid());
-                prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
+                    ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, compVcs.getTemUuid());
+                    StatusUtils.Status s = StatusUtils.getStatusByCode(dbEnv, String.valueOf(compVcs.getStatus()));
+                    prod.put("status", s.getStatusCode() == null ? "" : s.getStatusCode());
+                    prod.put("statusName", s.getStatusNameTh() == null ? "" : s.getStatusNameTh());
+                    prod.put("statusNameEn", s.getStatusNameEn() == null ? "" : s.getStatusNameEn());
+                    prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
+                    prod.put("theme", compVcs.getThemeUuid().getUuid());
+                    prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
 //                    prod.put("productProcessor", null != shelfProduct.getAttr1() ? shelfProduct.getAttr1() : "");
 //                    prod.put("productController", null != shelfProduct.getAttr2() ? shelfProduct.getAttr2() : "");
-                prod.put("businessLine", ValidUtils.null2NoData(compVcs.getProdUuid().getBusinessLine()));
-                prod.put("businessDept", ValidUtils.null2NoData(compVcs.getProdUuid().getBusinessDept()));
-                prod.put("prodCode", ValidUtils.null2NoData(compVcs.getProdUuid().getProdCode()));
-                prod.put("prodName", ValidUtils.null2NoData(compVcs.getProdUuid().getProdName()));
-                prod.put("company", ValidUtils.null2NoData(compVcs.getProdUuid().getCompany()));
-                prod.put("verProd", ValidUtils.obj2Int(compVcs.getVerProd()));
+                    prod.put("businessLine", ValidUtils.null2NoData(compVcs.getProdUuid().getBusinessLine()));
+                    prod.put("businessDept", ValidUtils.null2NoData(compVcs.getProdUuid().getBusinessDept()));
+                    prod.put("prodCode", ValidUtils.null2NoData(compVcs.getProdUuid().getProdCode()));
+                    prod.put("prodName", ValidUtils.null2NoData(compVcs.getProdUuid().getProdName()));
+                    prod.put("company", ValidUtils.null2NoData(compVcs.getProdUuid().getCompany()));
+                    prod.put("verProd", ValidUtils.obj2Int(compVcs.getVerProd()));
+                    prod.put("tmpVer", ValidUtils.obj2Int(compVcs.getVerTem()));    //เพิ่ม 07/07/2020
 //                ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, product.getString("template"));
 //                StatusUtils.Status st = StatusUtils.getStatusByCode(dbEnv, String.valueOf(statusVal));
 //                product.put("status", st.getStatusCode() == null ? "" : st.getStatusCode());
@@ -1367,15 +1422,18 @@ public class ProductUtils {
 //                product.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
 //                product.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
 //                product.put("verProd", verProd);
-                JSONObject retProduct = ProductUtils.getProductDataByProduct(dbEnv, vcsList);
-                retProduct.put("product", prod);
-                productList.put(retProduct);
+                    JSONObject retProduct = ProductUtils.getProductDataByProduct(dbEnv, vcsList);
+                    retProduct.put("product", prod);
+                    productList.put(retProduct);
+                }
             }
+        } catch (HibernateException | NullPointerException e) {
+            throw e;
         }
         return productList;
     }
 
-    public static JSONObject sendToApproveProduct(String dbEnv, String uuid, Integer statusWaitApp, Date sysdate, String username, String respCode) {
+    public static JSONObject sendToApproveProduct(String dbEnv, String uuid, Integer statusWaitApp, Date sysdate, String username, String respCode, String remark) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "");
         try {
             ShelfProductDao dao = new ShelfProductDao();
@@ -1392,31 +1450,38 @@ public class ProductUtils {
                 if (null == vcs.getCompUuid()) {
                     sp = vcs.getProdUuid();
                 }
-                vcs.setAttr1(respCode);
+                if (!respCode.isEmpty()) {
+                    vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                }
+                if (!remark.isEmpty()) {
+                    vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                }
             }
             sp.setStatus(statusWaitApp);
             sp.setUpdateAt(sysdate);
             sp.setUpdateBy(username);
             sp.setShelfProductVcsList(vcsInpList);
-//                respCode
-            sp = dao.updateShelfProduct(dbEnv, sp);
+            dao.updateShelfProduct(dbEnv, sp, username);
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
+            throw e;
         }
         return result;
     }
 
-    public static JSONObject approveProduct(String dbEnv, String uuid, ShelfProduct prod, List<ShelfProductVcs> list) {
+    public static JSONObject approveProduct(String dbEnv, String uuid, ShelfProduct prod, List<ShelfProductVcs> list, String termsNCondition) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "");
         try {
+            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+            Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
             prod.setShelfProductVcsList(list);
             ShelfProductDao dao = new ShelfProductDao();
-            dao.updateShelfProduct(dbEnv, prod);
+            dao.updateShelfProduct(dbEnv, prod, termsNCondition, statusActive, statusInactive);  //save product , product vcs 
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
@@ -1438,87 +1503,126 @@ public class ProductUtils {
                 sp.setUpdateBy(username);
                 sp.setUpdateAt(sysdate);
                 for (ShelfProductVcs vcs : vcsWaitList) {
-                    vcs.setAttr1((vcs.getAttr1() + " " + ValidUtils.null2NoData(remark)));
                     vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(reject)));
                     vcs.setStatus(reject);
                     vcs.setUpdateAt(sysdate);
                     vcs.setUpdateBy(username);
+                    if (!respCode.isEmpty()) {
+                        vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                    }
+                    if (!remark.isEmpty()) {
+                        vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                    }
                 }
                 sp.setShelfProductVcsList(vcsWaitList);
-//                respCode
-                sp = dao.updateShelfProduct(dbEnv, sp);
+                dao.updateShelfProduct(dbEnv, sp, username);
+            }
+            Integer statusWaitApp2 = StatusUtils.getWaittoApprove2(dbEnv).getStatusCode();
+            Integer[] wa2Status = {statusWaitApp2};
+            List<ShelfProductVcs> vcsWait2List = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, verProd, wa2Status);
+            if (null != vcsWait2List && vcsWait2List.size() > 0) {
+                ShelfProduct sp = vcsWait2List.get(0).getProdUuid();
+                sp.setStatus(reject);
+                sp.setUpdateBy(username);
+                sp.setUpdateAt(sysdate);
+                for (ShelfProductVcs vcs : vcsWait2List) {
+                    vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(reject)));
+                    vcs.setStatus(reject);
+                    vcs.setUpdateAt(sysdate);
+                    vcs.setUpdateBy(username);
+                    if (!respCode.isEmpty()) {
+                        vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                    }
+                    if (!remark.isEmpty()) {
+                        vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                    }
+                }
+                sp.setShelfProductVcsList(vcsWait2List);
+                dao.updateShelfProduct(dbEnv, sp, username);
             }
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
     }
 
-    public static JSONObject pauseProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark) {
+    public static JSONObject pauseProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark, Integer nextStatus, Integer[] currStatus) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "");
         try {
+            Integer rejectStatus = StatusUtils.getReject(dbEnv).getStatusCode();
+            Integer activeStatus = StatusUtils.getActive(dbEnv).getStatusCode();
             Date sysdate = new Date();
             ShelfProductDao dao = new ShelfProductDao();
             ShelfProductVcsDao vcsDao = new ShelfProductVcsDao();
-            Integer status = StatusUtils.getPause(dbEnv).getStatusCode();
-            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
-            Integer[] activeStatus = {statusActive};
-            List<ShelfProductVcs> vcsActiveList = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, verProd, activeStatus);
+            List<ShelfProductVcs> vcsActiveList = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, verProd, currStatus);
             if (null != vcsActiveList && vcsActiveList.size() > 0) {
                 ShelfProduct sp = vcsActiveList.get(0).getProdUuid();
-                sp.setStatus(status);
+                sp.setStatus(nextStatus);
                 sp.setUpdateBy(username);
                 sp.setUpdateAt(sysdate);
                 for (ShelfProductVcs vcs : vcsActiveList) {
-                    vcs.setAttr1((vcs.getAttr1() + " " + ValidUtils.null2NoData(remark)).trim());
-                    vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(status)));
-                    vcs.setStatus(status);
+                    vcs.setAttr1((ValidUtils.null2NoData(vcs.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
+                    if (nextStatus.equals(activeStatus)) {
+                        vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(rejectStatus)));
+                        vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(nextStatus)));
+                    } else {
+                        vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(nextStatus)));
+                    }
+                    vcs.setStatus(nextStatus);
                     vcs.setUpdateAt(sysdate);
                     vcs.setUpdateBy(username);
+                    if (!respCode.isEmpty()) {
+                        vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                    }
+                    if (!remark.isEmpty()) {
+                        vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                    }
                 }
-//                respCode
                 sp.setShelfProductVcsList(vcsActiveList);
-                sp = dao.updateShelfProduct(dbEnv, sp);
+                dao.updateShelfProduct(dbEnv, sp, username);
             }
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
     }
 
-    public static JSONObject startProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark) {
+    public static JSONObject startProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark, Integer currStatus, Integer nextStatus) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "");
         try {
             Date sysdate = new Date();
             ShelfProductDao dao = new ShelfProductDao();
             ShelfProductVcsDao vcsDao = new ShelfProductVcsDao();
-            Integer status = StatusUtils.getActive(dbEnv).getStatusCode();
-            Integer statusPause = StatusUtils.getPause(dbEnv).getStatusCode();
-            Integer[] pauseStatus = {statusPause};
+            Integer[] pauseStatus = {currStatus};
             List<ShelfProductVcs> vcsPauseList = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, verProd, pauseStatus);
             if (null != vcsPauseList && vcsPauseList.size() > 0) {
                 ShelfProduct sp = vcsPauseList.get(0).getProdUuid();
-                sp.setStatus(status);
+                sp.setStatus(nextStatus);
                 sp.setUpdateAt(sysdate);
                 sp.setUpdateBy(username);
                 for (ShelfProductVcs vcs : vcsPauseList) {
-                    vcs.setAttr1((vcs.getAttr1() + " " + ValidUtils.null2NoData(remark)).trim());
-                    vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(status)));
-                    vcs.setStatus(status);
+                    vcs.setAttr1((ValidUtils.null2NoData(vcs.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
+                    vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(nextStatus)));
+                    vcs.setStatus(nextStatus);
                     vcs.setUpdateAt(sysdate);
                     vcs.setUpdateBy(username);
+                    if (!respCode.isEmpty()) {
+                        vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                    }
+                    if (!remark.isEmpty()) {
+                        vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                    }
                 }
-//                respCode
                 sp.setShelfProductVcsList(vcsPauseList);
-                sp = dao.updateShelfProduct(dbEnv, sp);
+                dao.updateShelfProduct(dbEnv, sp, username);
             }
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
@@ -1533,19 +1637,24 @@ public class ProductUtils {
             ShelfProduct sp = dao.getShelfProductByUUID(dbEnv, uuid);
             sp.setStatus(status);
             sp.setUpdateAt(sysdate);
-            sp.setAttr1((sp.getAttr1() + " " + ValidUtils.null2NoData(remark)).trim());
+            sp.setAttr1((ValidUtils.null2NoData(sp.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
             sp.setUpdateBy(username);
-            for (ShelfProductVcs tmp : sp.getShelfProductVcsList()) {
-                tmp.setState(StatusUtils.setStatus(tmp.getState(), ValidUtils.null2NoData(status)));
-                tmp.setStatus(status);
-                tmp.setUpdateAt(sysdate);
-                tmp.setUpdateBy(username);
+            for (ShelfProductVcs vcs : sp.getShelfProductVcsList()) {
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(status)));
+                vcs.setStatus(status);
+                vcs.setUpdateAt(sysdate);
+                vcs.setUpdateBy(username);
+                if (!respCode.isEmpty()) {
+                    vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                }
+                if (!remark.isEmpty()) {
+                    vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                }
             }
-//                respCode
-            sp = dao.updateShelfProduct(dbEnv, sp);
+            dao.updateShelfProduct(dbEnv, sp, username);
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
@@ -1554,6 +1663,7 @@ public class ProductUtils {
     public static JSONObject rejectDelete(String dbEnv, String uuid, int verProd, String respCode, String username, String remark) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "");
         try {
+            Integer rejectStatus = StatusUtils.getReject(dbEnv).getStatusCode();
             Date sysdate = new Date();
             ShelfProductDao dao = new ShelfProductDao();
             Integer status = StatusUtils.getReject(dbEnv).getStatusCode();
@@ -1561,18 +1671,31 @@ public class ProductUtils {
             sp.setStatus(status);
             sp.setUpdateAt(sysdate);
             sp.setUpdateBy(username);
-            sp.setAttr1((sp.getAttr1() + " " + ValidUtils.null2NoData(remark)).trim());
-            for (ShelfProductVcs tmp : sp.getShelfProductVcsList()) {
-                tmp.setState(StatusUtils.setStatus(tmp.getState(), ValidUtils.null2NoData(status)));
-                tmp.setStatus(status);
-                tmp.setUpdateAt(sysdate);
-                tmp.setUpdateBy(username);
+            sp.setAttr1((ValidUtils.null2NoData(sp.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
+            for (ShelfProductVcs vcs : sp.getShelfProductVcsList()) {
+                String states[] = vcs.getState().split("/");
+                StatusUtils.Status st = null;
+                if (states.length - 2 >= 0) {
+                    st = StatusUtils.getStatusByCode(dbEnv, states[states.length - 2]);
+                } else {
+                    st = StatusUtils.getStatusByCode(dbEnv, states[states.length - 1]);
+                }
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(rejectStatus)));
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(st.getStatusCode())));
+                vcs.setStatus(st.getStatusCode());
+                vcs.setUpdateAt(sysdate);
+                vcs.setUpdateBy(username);
+                if (!respCode.isEmpty()) {
+                    vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                }
+                if (!remark.isEmpty()) {
+                    vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                }
             }
-//                respCode
-            sp = dao.updateShelfProduct(dbEnv, sp);
+            dao.updateShelfProduct(dbEnv, sp, username);
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
@@ -1588,51 +1711,108 @@ public class ProductUtils {
             sp.setStatus(status);
             sp.setUpdateAt(sysdate);
             sp.setUpdateBy(username);
-            sp.setAttr1((sp.getAttr1() + " " + ValidUtils.null2NoData(remark)).trim());
-            for (ShelfProductVcs tmp : sp.getShelfProductVcsList()) {
-                tmp.setState(StatusUtils.setStatus(tmp.getState(), ValidUtils.null2NoData(status)));
-                tmp.setStatus(status);
-                tmp.setUpdateAt(sysdate);
-                tmp.setUpdateBy(username);
+            sp.setAttr1((ValidUtils.null2NoData(sp.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
+            for (ShelfProductVcs vcs : sp.getShelfProductVcsList()) {
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(status)));
+                vcs.setStatus(status);
+                vcs.setUpdateAt(sysdate);
+                vcs.setUpdateBy(username);
+                if (!respCode.isEmpty()) {
+                    vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                }
+                if (!remark.isEmpty()) {
+                    vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                }
             }
-//                respCode
-            sp = dao.updateShelfProduct(dbEnv, sp);
+            dao.updateShelfProduct(dbEnv, sp, username);
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
     }
 
-    public static JSONObject terminateProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark) {
+    public static JSONObject terminateProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark, Integer status) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "");
         try {
             Date sysdate = new Date();
             ShelfProductDao dao = new ShelfProductDao();
-            Integer status = StatusUtils.getTerminate(dbEnv).getStatusCode();
             ShelfProduct sp = dao.getShelfProductByUUID(dbEnv, uuid);
             sp.setStatus(status);
             sp.setUpdateAt(sysdate);
             sp.setUpdateBy(username);
-            sp.setAttr1((sp.getAttr1() + " " + ValidUtils.null2NoData(remark)).trim());
-            for (ShelfProductVcs tmp : sp.getShelfProductVcsList()) {
-                tmp.setState(StatusUtils.setStatus(tmp.getState(), ValidUtils.null2NoData(status)));
-                tmp.setStatus(status);
-                tmp.setUpdateAt(sysdate);
-                tmp.setUpdateBy(username);
+            sp.setAttr1((ValidUtils.null2NoData(sp.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
+            for (ShelfProductVcs vcs : sp.getShelfProductVcsList()) {
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(status)));
+                vcs.setStatus(status);
+                vcs.setUpdateAt(sysdate);
+                vcs.setUpdateBy(username);
+                if (!respCode.isEmpty()) {
+                    vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                }
+                if (!remark.isEmpty()) {
+                    vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                }
             }
-//                respCode
-            sp = dao.updateShelfProduct(dbEnv, sp);
+            dao.updateShelfProduct(dbEnv, sp, username);
         } catch (HibernateException | NullPointerException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
     }
 
-    public static JSONObject compareEndDateNActiveDate(List<ShelfProductVcs> vcsInprogressList, List<ShelfProductVcs> vcsActiveList) {
+    public static JSONObject rejectTerminateProduct(String dbEnv, String uuid, int verProd, String respCode, String username, String remark) {
+        JSONObject result = new JSONObject().put("status", 200).put("description", "");
+        try {
+            Date sysdate = new Date();
+            ShelfProductDao dao = new ShelfProductDao();
+            ShelfProduct sp = dao.getShelfProductByUUID(dbEnv, uuid);
+            Integer rejectStatus = StatusUtils.getReject(dbEnv).getStatusCode();
+            sp.getShelfProductVcsList().sort(Comparator.comparing(ShelfProductVcs::getVerProd));
+            Integer lastStatus = null;
+            for (ShelfProductVcs vcs : sp.getShelfProductVcsList()) {
+                String states[] = vcs.getState().split("/");
+                StatusUtils.Status st = null;
+                if (states.length - 2 >= 0) {
+                    st = StatusUtils.getStatusByCode(dbEnv, states[states.length - 2]);
+                } else {
+                    st = StatusUtils.getStatusByCode(dbEnv, states[states.length - 1]);
+                }
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(rejectStatus)));
+                vcs.setState(StatusUtils.setStatus(vcs.getState(), ValidUtils.null2NoData(st.getStatusCode())));
+                vcs.setStatus(st.getStatusCode());
+                vcs.setUpdateAt(sysdate);
+                vcs.setUpdateBy(username);
+                if (!respCode.isEmpty()) {
+                    vcs.setAttr2(StatusUtils.setStatus(vcs.getAttr2(), ValidUtils.null2NoData(respCode)));
+                }
+                if (!remark.isEmpty()) {
+                    vcs.setAttr3(StatusUtils.setRemark(vcs.getAttr3(), ValidUtils.null2NoData(remark)));
+                }
+                if (vcs.getVerProd() == 0) {
+                    lastStatus = st.getStatusCode();
+                }
+                if (null == lastStatus) {
+                    lastStatus = st.getStatusCode();
+                }
+            }
+            sp.setStatus(lastStatus);
+            sp.setUpdateAt(sysdate);
+            sp.setUpdateBy(username);
+            sp.setAttr1((ValidUtils.null2NoData(sp.getAttr1()) + " " + ValidUtils.null2NoData(remark)).trim());
+            dao.updateShelfProduct(dbEnv, sp, username);
+        } catch (HibernateException | NullPointerException e) {
+            //e.printStackTrace();
+            logger.info(e.getMessage());
+            result.put("status", 500).put("description", "" + e);
+        }
+        return result;
+    }
+
+    public static JSONObject compareEndDateNActiveDate(List<ShelfProductVcs> vcsActiveList, List<ShelfProductVcs> vcsInprogressList, String dbEnv) {
         JSONObject result = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject().put("flagCon", false));
         try {
             String inproActiveDate = "", inproEndDate = "", activeActiveDate = "", activeEndDate = "", prodCode = "", prodName = "";
@@ -1687,7 +1867,7 @@ public class ProductUtils {
             if (!"".equals(inproActiveDate) && !"".equals(activeEndDate)) {
                 Date inAcDate = ValidUtils.str2Date(inproActiveDate, "yyyy-MM-dd");
                 Date acEndDate = ValidUtils.str2Date(activeEndDate, "yyyy-MM-dd");
-                if (DateUtils.addDate(acEndDate, 0, 0, 1, 0, 0, 0).compareTo(inAcDate) != 0) {
+                if (DateUtils.addDate(acEndDate, 0, 0, 1, 0, 0, 0).compareTo(inAcDate) < 0) {
                     JSONObject resInAct = new JSONObject()
                             .put("flagCon", true)
                             .put("detail", new JSONObject().put("errCode", "ERR004")
@@ -1697,164 +1877,485 @@ public class ProductUtils {
                                     .put("curEndDate", activeEndDate)
                                     .put("newStartDate", inproActiveDate)
                                     .put("newEndDate", inproEndDate)
-                                    .put("description", "Note...gab วันที่สิ้นสุด กับวันที่เริ่ม"));
+                                    .put("description", StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0011")));
                     result.put("data", resInAct);
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("" + e);
+        } catch (JSONException | ParseException e) {
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
         }
         return result;
     }
 
-    public static JSONObject getProductVcsFrontEnd(String dbEnv, ShelfProduct pd, String compUuid, Integer prodVer, Integer compVer) {
+    public static JSONObject getProductVcsFrontEnd(String dbEnv, ShelfProduct pd, String compUuid, Integer compVer) {
         JSONObject resp = new JSONObject();
         List<JSONObject> arr = new ArrayList<JSONObject>();
-        Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
-        String shelfTmpVcs = "";
-        for (ShelfProductVcs vcs : pd.getShelfProductVcsList()) {
-            if (compVer.equals(vcs.getVerComp()) && prodVer.equals(vcs.getVerProd())) {
-                if (null == vcs.getCompUuid()) {
-                    JSONObject jdtl = new JSONObject();
-                    for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
-                        if (dtl.getStatus() == statusActive) {
-                            jdtl.put(dtl.getLkCode(), dtl.getLkValue());
-                        }
-                    }
-                    jdtl.put("uuid", vcs.getProdUuid().getUuid());
-                    jdtl.put("prodId", vcs.getProdUuid().getUuid());
-                    jdtl.put("prodVer", vcs.getVerProd());
-                    jdtl.put("prodCode", vcs.getProdUuid().getProdCode());
-                    jdtl.put("prodName", vcs.getProdUuid().getProdName());
-                    jdtl.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
-                    jdtl.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
-                    jdtl.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
-                    resp.put("product", jdtl);
-                    JSONObject jtemplate = new JSONObject();
-                    ShelfTmpDao tmpDao = new ShelfTmpDao();
-                    ShelfTmp tmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
-                    if (null != tmp) {
-                        jtemplate.put("uuid", tmp.getUuid());
-                        jtemplate.put("name", tmp.getTmpName());
-                        JSONArray jarray = new JSONArray();
-                        for (ShelfTmpVcs tv : tmp.getShelfTmpVcsList()) {
-//                            ดึงที่ version ของ vcs ที่มาจาก product_vcs
-                            if (tv.getVersion() == vcs.getVerTem()) {
-                                jarray = new JSONArray(tv.getAttr1());
-                            }
-                        }
-                        List<JSONObject> listTmpComp = new ArrayList<>();
-                        for (int i = 0; i < jarray.length(); i++) {
-                            listTmpComp.add(jarray.getJSONObject(i));
-                        }
-                        Utils.sortJSONObjectByKey(listTmpComp, "seqNo", true);
-                        jtemplate.put("component", jarray);
-                    }
-                    resp.put("template", jtemplate);
-                    Gson gson = new Gson();
-                    JSONObject json = new JSONObject(gson.toJson(null != vcs.getThemeUuid() ? vcs.getThemeUuid().getValue() : new JSONObject()));
-                    resp.put("theme", json.has("info") ? json.getJSONObject("info") : json);
-                } else if (compUuid.equalsIgnoreCase(vcs.getCompUuid().getUuid())) {
-                    ShelfTmpDao tmpDao = new ShelfTmpDao();
-                    ShelfTmp shelfTmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
-                    if (shelfTmpVcs.equalsIgnoreCase("")) {
-                        for (ShelfTmpVcs tmpVcs : shelfTmp.getShelfTmpVcsList()) {
-                            if (tmpVcs.getVersion() == vcs.getVerTem()) {
-                                shelfTmpVcs = tmpVcs.getUuid();
-                                break;
-                            }
-                        }
-                    }
-
-                    ShelfTmpDetailDao shelfTmpDtlDao = new ShelfTmpDetailDao();
-                    ShelfComp shelfComp = shelfTmpDtlDao.getShelfComponentByCompUUIDAndTemplateVCS(dbEnv, vcs.getCompUuid().getUuid(), shelfTmpVcs);
-                    if (null != vcs.getCompStatus() && vcs.getCompStatus().equals(statusActive)) {
+        try {
+            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+            String shelfTmpVcs = "";
+            for (ShelfProductVcs vcs : pd.getShelfProductVcsList()) {
+                if (compVer.equals(vcs.getVerComp())) {
+                    if (null == vcs.getCompUuid()) {
                         JSONObject jdtl = new JSONObject();
-                        jdtl.put("uuid", vcs.getUuid());
-                        jdtl.put("compUuid", shelfComp.getUuid());
-                        jdtl.put("seqNo", shelfComp.getSeqNo());
-                        jdtl.put("compName", shelfComp.getCompName());
                         for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
                             if (dtl.getStatus() == statusActive) {
-                                if (null != dtl.getAttr1() && !"".equals(dtl.getAttr1())) {
-                                    JSONObject obj = new JSONObject();
-                                    obj.put("value", dtl.getLkValue());
-                                    obj.put("attr1", dtl.getAttr1());
-                                    jdtl.put(dtl.getLkCode(), obj.toString());
-                                } else {
-                                    jdtl.put(dtl.getLkCode(), dtl.getLkValue());
+                                jdtl.put(dtl.getLkCode(), dtl.getLkValue());
+                            }
+                        }
+                        jdtl.put("uuid", vcs.getProdUuid().getUuid());
+                        jdtl.put("prodId", vcs.getProdUuid().getUuid());
+                        jdtl.put("prodVer", vcs.getVerProd());
+                        jdtl.put("prodCode", vcs.getProdUuid().getProdCode());
+                        jdtl.put("prodName", vcs.getProdUuid().getProdName());
+                        jdtl.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
+                        jdtl.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
+                        jdtl.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
+                        resp.put("product", jdtl);
+                        JSONObject jtemplate = new JSONObject();
+                        ShelfTmpDao tmpDao = new ShelfTmpDao();
+                        ShelfTmp tmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
+                        if (null != tmp) {
+                            jtemplate.put("uuid", tmp.getUuid());
+                            jtemplate.put("name", tmp.getTmpName());
+                            JSONArray jarray = new JSONArray();
+                            for (ShelfTmpVcs tv : tmp.getShelfTmpVcsList()) {
+                                if (tv.getStatus() == statusActive) {   //Confirm by Panadda 23/07/2020
+                                    jarray = new JSONArray(tv.getAttr1());
+                                }
+                            }
+                            List<JSONObject> listTmpComp = new ArrayList<>();
+                            for (int i = 0; i < jarray.length(); i++) {
+                                listTmpComp.add(jarray.getJSONObject(i));
+                            }
+                            Utils.sortJSONObjectByKey(listTmpComp, "seqNo", true);
+                            jtemplate.put("component", jarray);
+                        }
+                        resp.put("template", jtemplate);
+                        Gson gson = new Gson();
+                        JSONObject json = new JSONObject(gson.toJson(null != vcs.getThemeUuid() ? vcs.getThemeUuid().getValue() : new JSONObject()));
+                        resp.put("theme", json.has("info") ? json.getJSONObject("info") : json);
+                    } else if (compUuid.equalsIgnoreCase(vcs.getCompUuid().getUuid())) {
+                        ShelfTmpDao tmpDao = new ShelfTmpDao();
+                        ShelfTmp shelfTmp = tmpDao.getShelfTmp(dbEnv, vcs.getTemUuid());
+                        if (shelfTmpVcs.equalsIgnoreCase("")) {
+                            for (ShelfTmpVcs tmpVcs : shelfTmp.getShelfTmpVcsList()) {
+                                if (tmpVcs.getStatus() == statusActive) {   //Confirm by Panadda 23/07/2020
+                                    shelfTmpVcs = tmpVcs.getUuid();
+                                    break;
                                 }
                             }
                         }
-                        arr.add(jdtl);
-                    }
-                }
-            }
-        }
-        resp.put("component", arr);
-        return resp;
-    }
 
-    public static JSONObject setActiveExpireProduct(String dbEnv) {
-        JSONObject result = new JSONObject().put("status", 200).put("description", "");
-        try {
-            List<JSONObject> list = new ArrayList<>();
-            Date sysdate = new Date();
-            Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
-            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
-            Integer statusExpire = StatusUtils.getExpired(dbEnv).getStatusCode();
-            ShelfProductDao dao = new ShelfProductDao();
-            HashMap mapActive = dao.getListActiveProductByStatus(dbEnv, statusActive);
-            HashMap mapInactive = dao.getListActiveProductByStatus(dbEnv, statusInactive);
-            Set<String> activeKName = mapActive.keySet();
-            Date expireDate = new Date();
-            for (String k2 : activeKName) {
-                JSONObject data = (JSONObject) mapActive.get(k2);
-                if (data.has("endDate")) {
-                    Date endDate = ValidUtils.str2Date(ValidUtils.null2NoData(data.get("endDate")), "yyyy-MM-dd");
-                    if (sysdate.compareTo(endDate) >= 0) {
-                        data.put("status", statusExpire);
-                        list.add(data);
-                        expireDate = endDate;
-                    }
-
-                }
-                if (null != mapInactive.get(k2)) {
-                    JSONObject data2 = (JSONObject) mapInactive.get(k2);
-                    if (data2.has("activeDate")) {
-                        Date activeDate = ValidUtils.str2Date(ValidUtils.null2NoData(data2.get("activeDate")), "yyyy-MM-dd");
-                        if (sysdate.compareTo(activeDate) >= 0) {
-                            data.put("status", statusExpire);
-                            list.add(data);
-                            data2.put("status", statusActive);
-                            list.add(data2);
-                            mapInactive.remove(k2);
-                            expireDate = activeDate;
+                        ShelfTmpDetailDao shelfTmpDtlDao = new ShelfTmpDetailDao();
+                        ShelfComp shelfComp = shelfTmpDtlDao.getShelfComponentByCompUUIDAndTemplateVCS(dbEnv, vcs.getCompUuid().getUuid(), shelfTmpVcs);
+                        if (null != vcs.getCompStatus() && vcs.getCompStatus().equals(statusActive)) {
+                            JSONObject jdtl = new JSONObject();
+                            jdtl.put("uuid", vcs.getUuid());
+                            jdtl.put("compUuid", shelfComp.getUuid());
+                            jdtl.put("seqNo", shelfComp.getSeqNo());
+                            jdtl.put("compName", shelfComp.getCompName());
+                            for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
+                                if (dtl.getStatus() == statusActive) {
+                                    if (null != dtl.getAttr1() && !"".equals(dtl.getAttr1())) {
+                                        JSONObject obj = new JSONObject();
+                                        obj.put("value", dtl.getLkValue());
+                                        obj.put("attr1", dtl.getAttr1());
+                                        jdtl.put(dtl.getLkCode(), obj.toString());
+                                    } else {
+                                        jdtl.put(dtl.getLkCode(), dtl.getLkValue());
+                                    }
+                                }
+                            }
+                            arr.add(jdtl);
                         }
                     }
                 }
             }
+            resp.put("component", arr);
+        } catch (NullPointerException | HibernateException e) {
+            throw e;
+        }
+        return resp;
+    }
+
+    public static JSONObject setActiveExpireProduct(String dbEnv) throws SQLException, ParseException {
+        JSONObject result = new JSONObject().put("status", 200).put("description", "");
+        try {
+            List<JSONObject> list = new ArrayList<>();
+            Date sysdate = ValidUtils.str2Date(DateUtils.getDisplayEnDate(new Date(), "yyyy-MM-dd"), "yyyy-MM-dd");
+            Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
+            Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+            Integer statusExpire = StatusUtils.getExpired(dbEnv).getStatusCode();
+            Integer statusPause = StatusUtils.getPause(dbEnv).getStatusCode();
+            Integer statusNotUse = StatusUtils.getNotUse(dbEnv).getStatusCode();
+            ShelfProductDao dao = new ShelfProductDao();
+            HashMap mapActive = dao.getListProductByStatus(dbEnv, statusActive);
+            HashMap mapInactive = dao.getListProductByStatus(dbEnv, statusInactive);
+            HashMap mapPause = dao.getListProductByStatus(dbEnv, statusPause);
             Set<String> inActiveKName = mapInactive.keySet();
             for (String k2 : inActiveKName) {
                 JSONObject data = (JSONObject) mapInactive.get(k2);
                 if (data.has("activeDate")) {
                     Date activeDate = ValidUtils.str2Date(ValidUtils.null2NoData(data.get("activeDate")), "yyyy-MM-dd");
                     if (sysdate.compareTo(activeDate) >= 0) {
+                        /*
+                        set active to expire
+                         */
+                        if (null != mapActive.get(k2)) {
+                            JSONObject dataActive = (JSONObject) mapActive.get(k2);
+                            dataActive.put("status", statusExpire);
+                            dataActive.put("state", StatusUtils.setStatus(dataActive.getString("state"), ValidUtils.obj2String(statusExpire)));
+                            dataActive.put("expireDate", activeDate);
+                            list.add(dataActive);
+                            mapActive.remove(k2);
+                        }
+                        /*
+                        set pause to notuse
+                         */
+                        if (null != mapPause.get(k2)) {
+                            JSONObject dataPause = (JSONObject) mapPause.get(k2);
+                            dataPause.put("status", statusNotUse);
+                            dataPause.put("state", StatusUtils.setStatus(dataPause.getString("state"), ValidUtils.obj2String(statusNotUse)));
+                            dataPause.put("expireDate", activeDate);
+                            list.add(dataPause);
+                            mapPause.remove(k2);
+                        }
+                        /*
+                        set inactive to active
+                         */
                         data.put("status", statusActive);
+                        data.put("state", StatusUtils.setStatus(data.getString("state"), ValidUtils.obj2String(statusActive)));
                         list.add(data);
                     }
                 }
             }
+            Set<String> activeKName = mapActive.keySet();
+            for (String k2 : activeKName) {
+                JSONObject data = (JSONObject) mapActive.get(k2);
+                if (data.has("endDate")) {
+                    Date endDate = ValidUtils.str2Date(ValidUtils.null2NoData(data.get("endDate")), "yyyy-MM-dd");
+                    if (sysdate.compareTo(endDate) > 0) {
+                        /*
+                        set active to expire
+                         */
+                        data.put("status", statusExpire);
+                        data.put("state", StatusUtils.setStatus(data.getString("state"), ValidUtils.obj2String(statusExpire)));
+                        data.put("expireDate", endDate);
+                        list.add(data);
+                    }
+
+                }
+            }
             ShelfProductVcsDao vcsDao = new ShelfProductVcsDao();
-            vcsDao.updateShelfProductVcs(dbEnv, list, expireDate, statusExpire);
-        } catch (HibernateException | NullPointerException | ParseException e) {
-            e.printStackTrace();
-            logger.error("" + e);
+            vcsDao.updateShelfProductVcs(dbEnv, list);
+        } catch (HibernateException | NullPointerException e) {
+            //e.printStackTrace();
+            logger.info(e.getMessage());
             result.put("status", 500).put("description", "" + e);
+            throw e;
         }
         return result;
     }
 
+    public static JSONObject validProduct(JSONObject datas, String dbEnv) {
+        JSONObject ret = new JSONObject().put("status", true).put("description", "");
+        boolean isReq = true;
+        try {
+            JSONObject objData = datas.getJSONObject("data");
+            JSONObject jsonProd = objData.getJSONObject("product");
+            List<String> colName = new ArrayList<>();
+            if (!jsonProd.has("prodCode") || (jsonProd.has("prodCode") && jsonProd.getString("prodCode").isEmpty())) {
+                colName.add("Product Code");
+                isReq = false;
+            }
+            if (!jsonProd.has("prodName") || (jsonProd.has("prodName") && jsonProd.getString("prodName").isEmpty())) {
+                colName.add("Product Name");
+                isReq = false;
+            }
+            if (!jsonProd.has("theme") || (jsonProd.has("theme") && jsonProd.getString("theme").isEmpty())) {
+                colName.add("Theme");
+                isReq = false;
+            }
+            if (!jsonProd.has("template") || (jsonProd.has("template") && jsonProd.getString("template").isEmpty())) {
+                colName.add("Template");
+                isReq = false;
+            }
+            if (!jsonProd.has("tmpVer") || (jsonProd.has("tmpVer") && ValidUtils.null2NoData(jsonProd.get("tmpVer")).isEmpty())) {
+                colName.add("Template Version");
+                isReq = false;
+            }
+            if (!jsonProd.has("prodType") || (jsonProd.has("prodType") && jsonProd.getString("prodType").isEmpty())) {
+                colName.add("Product Type");
+                isReq = false;
+            }
+            if (!jsonProd.has("groupProduct") || (jsonProd.has("groupProduct") && jsonProd.getString("groupProduct").isEmpty())) {
+                colName.add("Group Product");
+                isReq = false;
+            }
+            if (!jsonProd.has("operDepartment") || (jsonProd.has("operDepartment") && jsonProd.getString("operDepartment").isEmpty())) {
+                colName.add("Operation Department");
+                isReq = false;
+            }
+            if (!jsonProd.has("prodDepartment") || (jsonProd.has("prodDepartment") && jsonProd.getString("prodDepartment").isEmpty())) {
+                colName.add("Product Department");
+                isReq = false;
+            }
+            if (!jsonProd.has("activeDate") || (jsonProd.has("activeDate") && jsonProd.getString("activeDate").isEmpty())) {
+                colName.add("Active Date");
+                isReq = false;
+            }
+            if (!jsonProd.has("endDate") || (jsonProd.has("endDate") && jsonProd.getString("endDate").isEmpty())) {
+                colName.add("End Date");
+                isReq = false;
+            }
+            Date effectiveDateTemplate = null;
+            List<String> errMsg = new ArrayList<>();
+            if (jsonProd.has("template") && !jsonProd.getString("template").isEmpty()
+                    && jsonProd.has("tmpVer") && !ValidUtils.null2NoData(jsonProd.get("tmpVer")).isEmpty()) {
+                String template = jsonProd.getString("template");
+                int tmpVer = ValidUtils.obj2Int(jsonProd.get("tmpVer"));
+                ShelfTmpVcsDao tmpDao = new ShelfTmpVcsDao();
+                List<ShelfTmpVcs> list = tmpDao.getListByTmpUuidAndTmpVersion(dbEnv, template, tmpVer, false);
+                if (list.isEmpty()) {
+                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0003"));
+                    isReq = false;
+                } else {
+                    if (tmpVer == 1) {
+                        effectiveDateTemplate = list.get(0).getEffectiveDate();
+                    }
+                }
+            }
+            if (jsonProd.has("theme") && !jsonProd.getString("theme").isEmpty()) {
+                ShelfThemeDao dao = new ShelfThemeDao();
+                ShelfTheme theme = dao.getShelfTmpTheme(dbEnv, jsonProd.getString("theme"));
+                if (null == theme) {
+                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0004"));
+                    isReq = false;
+                }
+            }
+            if (jsonProd.has("activeDate") && !jsonProd.getString("activeDate").isEmpty()) {
+                Date curDate = ValidUtils.str2Date(DateUtils.getDisplayEnDate(new Date(), "yyyy-MM-dd"), "yyyy-MM-dd");
+                Date activeDate = ValidUtils.str2Date(jsonProd.getString("activeDate"), "yyyy-MM-dd");
+                if (activeDate.compareTo(curDate) < 0) {
+                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0005"));
+                    isReq = false;
+                }
+            }
+            if (jsonProd.has("activeDate") && !jsonProd.getString("activeDate").isEmpty() && jsonProd.has("endDate") && !jsonProd.getString("endDate").isEmpty()) {
+                Date activeDate = ValidUtils.str2Date(jsonProd.getString("activeDate"), "yyyy-MM-dd");
+                Date endDate = ValidUtils.str2Date(jsonProd.getString("endDate"), "yyyy-MM-dd");
+                if (endDate.compareTo(activeDate) < 0) {
+                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0006"));
+                    isReq = false;
+                }
+                if (null != effectiveDateTemplate) {
+                    Date effectDateTmp = ValidUtils.str2Date(DateUtils.getDisplayEnDate(effectiveDateTemplate, "yyyy-MM-dd"), "yyyy-MM-dd");
+                    if (effectDateTmp.compareTo(activeDate) > 0) {
+                        errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0007"));
+                        isReq = false;
+                    }
+                }
+            }
+            if (jsonProd.has("uuid") && !jsonProd.getString("uuid").isEmpty()) {
+                String uuid = jsonProd.getString("uuid");
+                Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+                Integer[] active = {statusActive};
+                ShelfProductVcsDao vcsDao = new ShelfProductVcsDao();
+                List<ShelfProductVcs> vcsActiveList = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, active);
+                for (ShelfProductVcs vcs : vcsActiveList) {
+                    if (vcs.getCompUuid() == null) {
+                        for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
+                            if ("activeDate".equalsIgnoreCase(dtl.getLkCode()) && !dtl.getLkValue().isEmpty()) {
+                                Date activeDateCurrVer = ValidUtils.str2Date(dtl.getLkValue(), "yyyy-MM-dd");
+                                Date activeDateNewVer = ValidUtils.str2Date(jsonProd.getString("activeDate"), "yyyy-MM-dd");
+                                if (activeDateCurrVer.compareTo(activeDateNewVer) == 0) {
+                                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0008"));
+                                    isReq = false;
+                                }
+                                Date currDate = ValidUtils.str2Date(DateUtils.getDisplayEnDate(new Date(), "yyyy-MM-dd"), "yyyy-MM-dd");
+                                if (currDate.compareTo(activeDateNewVer) == 0) {
+                                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0009"));
+                                    isReq = false;
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            if (!isReq) {
+                if (!colName.isEmpty()) {
+                    String desc = (StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0002") + " " + colName.toString());
+                    ret.put("description", desc);
+                }
+                if (!errMsg.isEmpty()) {
+                    ret.put("description", ret.getString("description") + errMsg.toString());
+                }
+            }
+            ret.put("status", isReq);
+        } catch (JSONException | ParseException | NullPointerException | HibernateException e) {
+            ret.put("status", false).put("description", "" + e);
+        }
+        return ret;
+    }
+
+    public static JSONObject confirmProduct(JSONObject datas, String dbEnv) {
+        JSONObject ret = new JSONObject().put("status", true).put("description", "");
+        boolean isReq = true;
+        try {
+            JSONObject objData = datas.getJSONObject("data");
+            JSONObject jsonProd = objData.getJSONObject("product");
+            List<String> errMsg = new ArrayList<>();
+            if (jsonProd.has("uuid") && !jsonProd.getString("uuid").isEmpty()) {
+                String uuid = jsonProd.getString("uuid");
+                Integer statusInActive = StatusUtils.getInActive(dbEnv).getStatusCode();
+                Integer[] inActive = {statusInActive};
+                ShelfProductVcsDao vcsDao = new ShelfProductVcsDao();
+                List<ShelfProductVcs> vcsInActiveList = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, inActive);
+                if (vcsInActiveList.size() > 0) {
+                    errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0010"));
+                    isReq = false;
+                }
+                Integer statusActive = StatusUtils.getActive(dbEnv).getStatusCode();
+                Integer[] active = {statusActive};
+                List<ShelfProductVcs> vcsActiveList = vcsDao.getListShelfProductVcsListByStatus(dbEnv, uuid, active);
+                for (ShelfProductVcs vcs : vcsActiveList) {
+                    if (vcs.getCompUuid() == null) {
+                        String activeDate = "", endDate = "";
+                        for (ShelfProductDtl dtl : vcs.getShelfProductDtlList()) {
+                            if ("activeDate".equalsIgnoreCase(dtl.getLkCode()) && !dtl.getLkValue().isEmpty()) {
+//                                activeDate = ValidUtils.str2Date(dtl.getLkValue(), "yyyy-MM-dd");
+                                activeDate = dtl.getLkValue();
+                            }
+                            if ("endDate".equalsIgnoreCase(dtl.getLkCode()) && !dtl.getLkValue().isEmpty()) {
+                                endDate = dtl.getLkValue();
+                            }
+                            if (!activeDate.isEmpty() && !endDate.isEmpty()) {
+                                Date activeDateNewVer = ValidUtils.str2Date(jsonProd.getString("activeDate"), "yyyy-MM-dd");
+                                Date endDateNewVer = ValidUtils.str2Date(jsonProd.getString("endDate"), "yyyy-MM-dd");
+                                if (null != activeDateNewVer) {
+                                    if (DateUtils.addDate(ValidUtils.str2Date(endDate, "yyyy-MM-dd"), 0, 0, 1, 0, 0, 0).compareTo(activeDateNewVer) < 0) {
+                                        errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0011"));
+                                        isReq = false;
+                                    }
+                                }
+                                if (null != endDateNewVer) {
+                                    if (endDateNewVer.compareTo(ValidUtils.str2Date(endDate, "yyyy-MM-dd")) < 0) {
+                                        errMsg.add(StatusUtils.getErrorMessageByCode(dbEnv, "SHELF0012"));
+                                        isReq = false;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+            }
+            if (!isReq && !errMsg.isEmpty()) {
+                ret.put("description", errMsg.toString());
+            }
+            ret.put("status", isReq);
+        } catch (JSONException | ParseException e) {
+            ret.put("status", false).put("description", "" + e);
+        }
+        return ret;
+    }
+
+    public static JSONObject getProductDataByProductAllVersion(String dbEnv, ShelfProductVcs shelfProductVcs) {
+        JSONObject retData = new JSONObject();
+        try {
+            Integer statusInactive = StatusUtils.getInActive(dbEnv).getStatusCode();
+            Integer statusTerminate = StatusUtils.getTerminate(dbEnv).getStatusCode();
+            Integer statusExpire = StatusUtils.getExpired(dbEnv).getStatusCode();
+            JSONObject prod = getInitialProduct();
+            prod.put("uuid", shelfProductVcs.getProdUuid().getUuid());
+            for (ShelfProductDtl prodDtl : shelfProductVcs.getShelfProductDtlList()) {
+                prod.put(prodDtl.getLkCode(), ValidUtils.null2NoData(prodDtl.getLkValue()));
+            }
+            ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, shelfProductVcs.getTemUuid());
+            StatusUtils.Status status = StatusUtils.getStatusByCode(dbEnv, String.valueOf(shelfProductVcs.getStatus()));
+            prod.put("status", shelfProductVcs.getStatus());
+            prod.put("statusNameTh", status.getStatusNameTh() == null ? "" : status.getStatusNameTh());
+            prod.put("statusNameEn", status.getStatusNameEn() == null ? "" : status.getStatusNameEn());
+            prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
+            prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
+            prod.put("businessLine", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getBusinessLine()));
+            prod.put("businessDept", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getBusinessDept()));
+            prod.put("company", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getCompany()));
+            prod.put("verProd", (shelfProductVcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(shelfProductVcs.getVerProd())));
+            prod.put("prodCode", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdCode()));
+            prod.put("prodName", ValidUtils.null2NoData(shelfProductVcs.getProdUuid().getProdName()));
+            prod.put("createDate", DateUtils.getDisplayEnDate(shelfProductVcs.getCreateAt(), "yyyy-MM-dd HH:mm:ss"));
+            prod.put("updateDate", ValidUtils.null2Separator(DateUtils.getDisplayEnDate(shelfProductVcs.getUpdateAt(), "yyyy-MM-dd HH:mm:ss"), DateUtils.getDisplayEnDate(shelfProductVcs.getCreateAt(), "yyyy-MM-dd HH:mm:ss")));
+            prod.put("updateBy", ValidUtils.null2Separator(shelfProductVcs.getUpdateBy(), shelfProductVcs.getCreateBy()));
+            prod.put("CreateBy", ValidUtils.null2NoData(shelfProductVcs.getCreateBy()));
+            prod.put("tmpVer", ValidUtils.obj2Int(shelfProductVcs.getVerTem()));
+            boolean isDel = false;
+            if (statusInactive.equals(shelfProductVcs.getStatus()) || statusTerminate.equals(shelfProductVcs.getStatus()) || statusExpire.equals(shelfProductVcs.getStatus())) {
+                isDel = true;
+            }
+            prod.put("edit", true);
+            prod.put("delete", isDel);
+            retData.put("product", prod);
+        } catch (NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+        }
+        return retData;
+    }
+    
+    public static JSONArray infoProductsByUuidStatus(String dbEnv, String prodUuid, int status) throws ParseException {
+        JSONArray productList = new JSONArray();
+
+        ShelfProductVcsDao shelfProductVcsDao = new ShelfProductVcsDao();
+        try {
+            Integer arStatus[] = {status};
+            List<ShelfProductVcs> shelfProductVcs = shelfProductVcsDao.getListProductVcsListByStatus(dbEnv, prodUuid,  arStatus);
+            if (shelfProductVcs.size() > 0) {
+                List<ShelfProductVcs>[] data = ProductUtils.orderProductByVersion(shelfProductVcs);
+                for (int i = 0; i < data.length; i++) {
+                    List<ShelfProductVcs> vcsList = data[i];
+                    List<ShelfProductDtl> dtlList = new ArrayList<>();
+                    JSONObject prod = ProductUtils.getInitialProduct();
+                    ShelfProductVcs compVcs = new ShelfProductVcs();
+                    for (ShelfProductVcs vcs : vcsList) {
+                        if (vcs.getCompUuid() == null) {
+                            dtlList = vcs.getShelfProductDtlList();
+                            compVcs = vcs;
+                            break;
+                        }
+                    }
+                    prod.put("uuid", compVcs.getProdUuid().getUuid());
+                    for (ShelfProductDtl dtl : dtlList) {
+                        prod.put(dtl.getLkCode(), ValidUtils.null2NoData(dtl.getLkValue()));
+                    }
+                    ShelfTmp shelfTmp = new ShelfTmpDao().getShelfTmp(dbEnv, compVcs.getTemUuid());
+                    StatusUtils.Status s = StatusUtils.getStatusByCode(dbEnv, String.valueOf(compVcs.getStatus()));
+                    prod.put("status", s.getStatusCode() == null ? "" : s.getStatusCode());
+                    prod.put("statusName", s.getStatusNameTh() == null ? "" : s.getStatusNameTh());
+                    prod.put("statusNameEn", s.getStatusNameEn() == null ? "" : s.getStatusNameEn());
+                    prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
+                    prod.put("theme", compVcs.getThemeUuid().getUuid());
+                    prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
+                    prod.put("businessLine", ValidUtils.null2NoData(compVcs.getProdUuid().getBusinessLine()));
+                    prod.put("businessDept", ValidUtils.null2NoData(compVcs.getProdUuid().getBusinessDept()));
+                    prod.put("prodCode", ValidUtils.null2NoData(compVcs.getProdUuid().getProdCode()));
+                    prod.put("prodName", ValidUtils.null2NoData(compVcs.getProdUuid().getProdName()));
+                    prod.put("company", ValidUtils.null2NoData(compVcs.getProdUuid().getCompany()));
+                    prod.put("verProd", ValidUtils.obj2Int(compVcs.getVerProd()));
+                    prod.put("tmpVer", ValidUtils.obj2Int(compVcs.getVerTem()));
+                    JSONObject retProduct = ProductUtils.getProductDataByProduct(dbEnv, vcsList);
+                    retProduct.put("product", prod);
+                    productList.put(retProduct);
+                }
+            }
+        } catch (HibernateException | NullPointerException e) {
+            throw e;
+        }
+        return productList;
+    }
 }
