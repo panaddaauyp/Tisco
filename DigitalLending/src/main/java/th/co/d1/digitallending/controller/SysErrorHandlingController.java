@@ -61,7 +61,7 @@ public class SysErrorHandlingController {
     public ResponseEntity<?> getListErrorHandling(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
         logger.info("POST : /sys/errorhandling/search");
         log.info("POST : /sys/errorhandling/search");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "Det Data Complete").put("datas", new JSONArray());
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "Get Data Complete").put("datas", new JSONArray());
         try {
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {

@@ -546,28 +546,87 @@ public class SysErrorHandlingDao {
             Session session = getSessionMaster(dbEnv).openSession();
             List params = new ArrayList<>();
             StringBuilder cmd = new StringBuilder();
-            cmd.append("select * from t_sys_error_handling a"
-                    + " INNER JOIN ("
-                    + "	select  txn_no,max(create_at) as create_at from t_sys_error_handling where"
-                    + "	create_at BETWEEN TO_TIMESTAMP('" + txnDateStart + "', 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP('" + txnDateEnd + "', 'DD/MM/YYYY HH24:MI:SS')"
-                    + "	group by txn_no ) b on (a.txn_no = b.txn_no and a.create_at = b.create_at )");
+            params.add(txnDateStart);
+            params.add(txnDateEnd);
 
+//            cmd.append("select * from t_sys_error_handling a"
+//                    + " INNER JOIN ("
+//                    + "	select  txn_no,max(create_at) as create_at from t_sys_error_handling where"
+//                    + "	create_at BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')"
+//                    + "	group by txn_no ) b on (a.txn_no = b.txn_no and a.create_at = b.create_at )");
+//
+//            if (txnNo != "" && txnNo != null && txnNo.length() > 0) {
+//                cmd.append(" WHERE a.txn_no = ? ");
+//                params.add(txnNo);
+//            }
+            cmd.append("select "
+                    + "ERR.txn_no,ERR.status,ERR.remark,ERR.attr1,ERR.CREATE_AT,ERR.CREATE_by, "
+                    + "ERR.UPDATE_AT,ERR.UPDATE_by,LOG.product_code,LOG.ref_no,LOG.case_id,LOG.source_device "
+                    + ",LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, "
+                    + "SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC, "
+                    + "COMP.COMP_NAME COMPONENTNAME "
+                    + "from t_sys_oper_log LOG "
+                    + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID "
+                    + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
+                    + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
+                    + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
+                    + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
+                    + "INNER JOIN T_SYS_ERROR_HANDLING ERR ON LOG.txn_no = ERR.txn_no "
+                    + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE "
+                    + "WHERE log.uuid IN ( select uuid from ( "
+                    + "select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP( "
+                    + "log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "
+                    + "from t_sys_oper_log log )A  where A.ROW_NO = 1 ) "
+                    + "AND LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
+                    + "AND LOG.STATE_CODE in ('f5901202-0ed8-4f9a-a749-0832cff442b0', "
+                    + "'bf710db4-3625-4e68-a308-e1606a5e7155', "
+                    + "'09c6873b-9a77-41fb-8ed6-14e94ed8bc56') "
+                    + "AND ERR.uuid IN ( select uuid from ( "
+                    + "select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP( "
+                    + "ERR.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, ERR.CREATE_AT desc) as ROW_NO "
+                    + "from T_SYS_ERROR_HANDLING log )A  where A.ROW_NO = 1 ) ");
+
+            cmd.append("AND LOG.create_at BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
             if (txnNo != "" && txnNo != null && txnNo.length() > 0) {
-                cmd.append(" WHERE a.txn_no = '" + txnNo + "'");
+                cmd.append("AND LOG.txn_no = ? ");
+                params.add(txnNo);
             }
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
 
+            System.out.println("cmd : " + cmd);
+
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
+            if (params.size() > 0) {
+                for (int i = 0; i < params.size(); i++) {
+                    if (params.get(i) instanceof String) {
+                        ps.setString(i + 1, (String) params.get(i));
+                    } else {
+                        ps.setInt(i + 1, (Integer) params.get(i));
+                    }
+                }
+            }
             rs = ps.executeQuery();
             while (rs.next()) {
-                JSONObject obj = new JSONObject().put("uuid", ValidUtils.null2NoData(rs.getString("uuid")))
-                        .put("prod_code", ValidUtils.null2NoData(rs.getString("prod_code")))
-                        .put("txn_no", ValidUtils.null2NoData(rs.getString("txn_no")))
+                JSONObject obj = new JSONObject().put("txnNo", ValidUtils.null2NoData(rs.getString("txn_no")))
                         .put("status", ValidUtils.null2NoData(rs.getString("status")))
-                        .put("create_at", ValidUtils.null2NoData(rs.getString("create_at")))
-                        .put("create_by", ValidUtils.null2NoData(rs.getString("create_by")))
-                        .put("update_at", ValidUtils.null2NoData(rs.getString("update_at")))
-                        .put("update_by", ValidUtils.null2NoData(rs.getString("update_by")))
-                        .put("remark", ValidUtils.null2NoData(rs.getString("remark")));
+                        .put("remark", ValidUtils.null2NoData(rs.getString("remark")))
+                        .put("attr1", ValidUtils.null2NoData(rs.getString("attr1")))
+                        .put("createAt", ValidUtils.null2NoData(rs.getString("create_at")))
+                        .put("createBy", ValidUtils.null2NoData(rs.getString("create_by")))
+                        .put("updateAt", ValidUtils.null2NoData(rs.getString("update_at")))
+                        .put("updateBy", ValidUtils.null2NoData(rs.getString("update_by")))
+                        .put("productCode", ValidUtils.null2NoData(rs.getString("product_code")))
+                        .put("refNo", ValidUtils.null2NoData(rs.getString("ref_no")))
+                        .put("caseId", ValidUtils.null2NoData(rs.getString("case_id")))
+                        .put("stCode", ValidUtils.null2NoData(rs.getString("ST_CODE ")))
+                        .put("state", ValidUtils.null2NoData(rs.getString("STATE_NAME")))
+                        .put("lookupNameTh", ValidUtils.null2NoData(rs.getString("LOOKUP_NAME_TH")))
+                        .put("statusName", ValidUtils.null2NoData(rs.getString("STATUS_NAME")))
+                        .put("company", ValidUtils.null2NoData(rs.getString("COMPANY")))
+                        .put("errNameTh", ValidUtils.null2NoData(rs.getString("ERR_NAME_TH")))
+                        .put("errNameEn", ValidUtils.null2NoData(rs.getString("ERR_NAME_EN")))
+                        .put("errDesc", ValidUtils.null2NoData(rs.getString("ERR_DESC")))
+                        .put("componentname", ValidUtils.null2NoData(rs.getString("COMPONENTNAME")));
+
                 list.put(obj);
             }
         } catch (HibernateException | NullPointerException e) {
