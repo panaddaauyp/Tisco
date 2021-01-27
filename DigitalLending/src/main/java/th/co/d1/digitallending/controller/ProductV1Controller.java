@@ -1643,8 +1643,14 @@ public class ProductV1Controller {
                 prod.put("status", vcs.getStatus());
                 prod.put("statusName", st.getStatusNameTh() == null ? "" : st.getStatusNameTh());
                 prod.put("statusNameEn", st.getStatusNameEn() == null ? "" : st.getStatusNameEn());
-                prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
-                prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
+                if(shelfTmp != null){
+                    prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
+                    prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
+                }else{
+                    prod.put("template", "");
+                    prod.put("templateName", "");
+                }
+                
                 prod.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
                 prod.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
                 prod.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
