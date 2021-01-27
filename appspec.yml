@@ -1,0 +1,30 @@
+version: 0.0
+os: linux
+files:
+  - source: /war/
+    destination: /home/ec2-user/war
+  - source: /scripts/
+    destination: /home/ec2-user/scripts
+permissions:
+  - object: /home/ec2-user/scripts
+    pattern: "**"
+    mode: 766
+    owner: ec2-user
+  - object: /home/ec2-user/war
+    pattern: "**"
+    mode: 766
+    owner: ec2-user
+hooks:
+  BeforeInstall:
+    - location: scripts/prepare_env.sh
+      runas: root
+  ApplicationStop:
+    - location: scripts/application_stop.sh
+      runas: root
+  ApplicationStart:
+    - location: scripts/application_start.sh
+      runas: root
+      timeout: 180
+  ValidateService:
+    - location: scripts/application_validate.sh
+      runas: root

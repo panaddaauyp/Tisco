@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1440px" height="208px" viewBox="0 0 1440 208" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.3 (67297) - http://www.bohemiancoding.com/sketch -->
+    <title>BG - feature</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="121.279297%" y1="217.803486%" x2="1.64930556%" y2="10.6295072%" id="linearGradient-1">
+            <stop stop-color="#FF7600" offset="0%"></stop>
+            <stop stop-color="#FFD637" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Sub-Company" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Landing-page" transform="translate(0.000000, -1840.000000)" fill="url(#linearGradient-1)" fill-rule="nonzero">
+            <g id="Features" transform="translate(0.000000, 919.000000)">
+                <g id="Mockup" transform="translate(0.000000, 678.000000)">
+                    <g id="BG---feature" transform="translate(0.000000, 243.000000)">
+                        <polygon id="Background" points="0 0 1440 142 1440 208 0 208"></polygon>
+                        <polygon id="Background" fill-opacity="0.5" transform="translate(720.000000, 104.000000) scale(-1, 1) translate(-720.000000, -104.000000) " points="0 0 1440 142 1440 208 0 208"></polygon>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

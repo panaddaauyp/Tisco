@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.5 (67469) - http://www.bohemiancoding.com/sketch -->
+    <title>Icons / payment</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <path d="M20.3129741,0.12096 L1.68790788,0.12096 C0.756346574,0.12096 0.00096,0.877204568 0.00096,1.80704989 L0.00096,13.6139251 C0.00096,14.5446284 0.756346574,15.299157 1.68790788,15.299157 L20.3129741,15.299157 C21.2445354,15.299157 21.999064,14.5446284 21.999064,13.6139251 L21.999064,1.80792988 C21.999064,0.877226568 21.2436774,0.120982 20.3129741,0.120982 L20.3129741,0.12096 Z M20.3129741,1.80790788 L20.3129741,3.49571376 L1.68790788,3.49571376 L1.68790788,1.80790788 L20.3129741,1.80790788 Z M1.68790788,13.6139031 L1.68790788,6.86699155 L20.3129741,6.86699155 L20.3129741,13.6139031 L1.68790788,13.6139031 Z" id="path-1"></path>
+    </defs>
+    <g id="Icons-/-payment" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="↳🎨-Color" transform="translate(1.000000, 3.000000)">
+            <g>
+                <mask id="mask-2" fill="white">
+                    <use xlink:href="#path-1"></use>
+                </mask>
+                <use id="Mask" fill="#000000" fill-rule="nonzero" xlink:href="#path-1"></use>
+                <g id="colors-/-black" mask="url(#mask-2)">
+                    <g transform="translate(-1.000000, -3.000000)">
+                        <rect fill="#F6F9FC" x="0" y="0" width="24" height="24"></rect>
+                        <rect id="colors-/-black" stroke="none" fill="#111111" fill-rule="evenodd" x="0" y="0" width="24" height="24"></rect>
+                    </g>
+                </g>
+            </g>
+        </g>
+        <g id="np_credit-card_1894758_000000" transform="translate(1.000000, 3.000000)"></g>
+    </g>
+</svg>

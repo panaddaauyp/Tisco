@@ -1,0 +1,80 @@
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 43px;
+    height: 17px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 13px;
+    width: 13px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #000000;
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+    border-radius: 17px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.error-field{
+    border: 1px solid red;
+}
+.uk-tile-default{
+    padding-left: 90px;
+}
+.powered-by{    
+    max-width: 6%;
+    vertical-align: bottom;
+}
+.group-powered-by{
+    padding-bottom: 10px;
+    font-weight: 600;
+}
+
+.css-check{
+    cursor: pointer;
+}
+.css-cancel{
+    cursor: pointer;
+}
+.uk-modal-footer{
+   border-top: 0px;
+}

@@ -1,0 +1,22 @@
+{
+    "default": {
+        "database_name": "DigitalLending",
+        "secretname": "alpha/digitalshelf",
+        "region": "ap-southeast-1"
+    },
+    "state2": {
+        "database_name": "",
+        "secretname": "",
+        "region": ""
+    },
+    "state3": {
+        "database_name": "",
+        "secretname": "",
+        "region": ""
+    },
+    "state4": {
+        "database_name": "",
+        "secretname": "",
+        "region": ""
+    }
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1440px" height="850px" viewBox="0 0 1440 850" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 52.3 (67297) - http://www.bohemiancoding.com/sketch -->
+    <title>BG</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="31.4887153%" y1="125.015625%" x2="31.4887153%" y2="54.3465074%" id="linearGradient-1">
+            <stop stop-color="#FF7600" offset="0%"></stop>
+            <stop stop-color="#FFD637" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Sub-Company" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Landing-page" fill="url(#linearGradient-1)" fill-rule="nonzero">
+            <g id="Head">
+                <polygon id="BG" points="6.39488462e-13 0 1440 0 1440 615.545137 0 850"></polygon>
+            </g>
+        </g>
+    </g>
+</svg>

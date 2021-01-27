@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<!--
+#Flr 28 local Server
+172.27.130.52 db.d1asia.co.th
+172.27.130.52 digitalsign.d1asia.co.th
+172.27.130.52 archiving.d1asia.co.th
+172.27.130.52 wsconvert.d1asia.co.th 
+172.27.130.52 wsconvert.ins.d1asia.co.th
+-->
+<hibernate-configuration>
+    <session-factory>
+        <!-- PostgreSQL -->
+        <!--<property name="spring.jpa.database-platform">org.hibernate.dialect.PostgreSQLDialect</property>-->
+        <property name="hibernate.dialect">org.hibernate.dialect.PostgreSQLDialect</property>
+        <property name="hibernate.connection.driver_class">org.postgresql.Driver</property> 
+        <!--<property name="hibernate.connection.url">jdbc:postgresql://db.d1asia.co.th:5432/DigitalLending</property>-->
+        <!--<property name="hibernate.connection.username">postgres</property>-->
+        <!--<property name="hibernate.connection.password">ENC(ReJkaLaVHzQkH6oX6Tf0t6wZeIKwDzscctCenHHBi/O1pErlpF4rAg==)</property>-->
+        <!--<property name="hibernate.connection.password">P@ssw0rd</property>-->
+        <!--<property name="connection_pool_size">1</property>-->
+        <!--<property name="hbm2ddl.auto">create</property>-->
+        <property name="show_sql">false</property>
+        <property name="hibernate.current_session_context_class">thread</property>
+        <property name="hibernate.enable_lazy_load_no_trans">true</property>
+        <mapping class="th.co.d1.digitallending.entity.ShelfComp"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfCompDtl"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfLookup"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfProduct"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfProductDtl"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfProductVcs"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfTmp"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfTmpAttach"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfTmpDetail"/>  
+        <mapping class="th.co.d1.digitallending.entity.ShelfTmpVcs"/>  
+        <mapping class="th.co.d1.digitallending.entity.SysLookup"/>
+        <mapping class="th.co.d1.digitallending.entity.ShelfTheme"/>
+        <mapping class="th.co.d1.digitallending.entity.SysAuditLog"/>
+        <mapping class="th.co.d1.digitallending.entity.SysRole"/>
+        <mapping class="th.co.d1.digitallending.entity.SysOperLog"/>
+        <mapping class="th.co.d1.digitallending.entity.SysLog"/>
+        <mapping class="th.co.d1.digitallending.entity.ShelfMenu"/>
+        <mapping class="th.co.d1.digitallending.entity.ShelfRole"/>
+        <mapping class="th.co.d1.digitallending.entity.ShelfRoleMenu"/>
+        <mapping class="th.co.d1.digitallending.entity.ShelfRoleFunc"/>
+    </session-factory>
+</hibernate-configuration>

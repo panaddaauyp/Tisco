@@ -1,0 +1,22 @@
+{
+    "default": {
+        "database_name": "#db_name#",
+        "secretname": "#db_secretname#",
+        "region": "#db_region#"
+    },
+    "state2": {
+        "database_name": "#db_name_state2#",
+        "secretname": "#db_secretname_state2#",
+        "region": "#db_region_state2#"
+    },
+    "state3": {
+        "database_name": "#db_name_state3#",
+        "secretname": "#db_secretname_state3#",
+        "region": "#db_region_state3#"
+    },
+    "state4": {
+        "database_name": "#db_name_state4#",
+        "secretname": "#db_secretname_state4#",
+        "region": "#db_region_state4#"
+    }
+}
