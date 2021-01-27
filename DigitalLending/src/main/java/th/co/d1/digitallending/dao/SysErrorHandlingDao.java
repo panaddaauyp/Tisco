@@ -34,9 +34,9 @@ import th.co.d1.digitallending.util.ValidUtils;
  * @author Ritthikriat
  */
 public class SysErrorHandlingDao {
-    
+
     Logger logger = Logger.getLogger(ShelfRoleFuncDao.class.getName());
-    
+
     public JSONObject getListErrorhandling(String dbEnv, String company, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart, String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
         JSONObject ret = new JSONObject();
         PreparedStatement ps = null, psOperLog = null;
@@ -53,11 +53,11 @@ public class SysErrorHandlingDao {
                     + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
                     + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
                     + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE  "
-                    + "WHERE log.uuid IN "                     
-                    + "( "                     
-                    + "    select uuid from ( "                     
+                    + "WHERE log.uuid IN "
+                    + "( "
+                    + "    select uuid from ( "
                     + "    select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP( "
-                    + "        log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "                     
+                    + "        log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "
                     + "    from t_sys_oper_log log )A  where A.ROW_NO = 1 ) "
                     + " AND LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
                     + " AND LOG.STATE_CODE IN ('f5901202-0ed8-4f9a-a749-0832cff442b0', 'bf710db4-3625-4e68-a308-e1606a5e7155', '09c6873b-9a77-41fb-8ed6-14e94ed8bc56') ");
@@ -460,7 +460,7 @@ public class SysErrorHandlingDao {
         }
         return ret;
     }
-    
+
     public SysErrorHandling saveSysErrorHandling(String dbEnv, SysErrorHandling list) {
 
         Transaction trans = null;
@@ -478,7 +478,7 @@ public class SysErrorHandlingDao {
         }
         return list;
     }
-    
+
     public SysErrorHandling getSysErrorHandlingByUuid(String dbEnv, String uuid) {
         SysErrorHandling eh = new SysErrorHandling();
         Transaction trans = null;
@@ -496,7 +496,7 @@ public class SysErrorHandlingDao {
         }
         return eh;
     }
-    
+
     public JSONObject updateByUuid(String dbEnv, String Uuid, String username, int status, String Department) {
         Transaction trans = null;
         PreparedStatement ps = null;
@@ -504,16 +504,16 @@ public class SysErrorHandlingDao {
         try (Session session = getSessionMaster(dbEnv).openSession()) {
             trans = session.beginTransaction();
             StringBuilder cmd = new StringBuilder();
-            
+
             cmd.append("UPDATE T_SYS_ERROR_HANDLING A SET "
-                      + "STATUS = "+status+" ,"
-                      + "UPDATE_AT = '" + sysdate.toString() +"', "
-                      + "UPDATE_BY = '" + username +"', "
-                      + "ATTR2 = "+Department+", "
-                      + "ATTR10 = "+status+", "
-                      + "ATTR9 = CONCAT(A.ATTR9,'/',"+status+"/) "
-                      + "where a.role_uuid = '" + Uuid +"' "
-                      + "and a.status In (112,115) ");
+                    + "STATUS = " + status + " ,"
+                    + "UPDATE_AT = '" + sysdate.toString() + "', "
+                    + "UPDATE_BY = '" + username + "', "
+                    + "ATTR2 = " + Department + ", "
+                    + "ATTR10 = " + status + ", "
+                    + "ATTR9 = CONCAT(A.ATTR9,'/'," + status + "/) "
+                    + "where a.role_uuid = '" + Uuid + "' "
+                    + "and a.status In (112,115) ");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
 
             ps.executeUpdate();
@@ -536,6 +536,47 @@ public class SysErrorHandlingDao {
                 logger.info(ex.getMessage());
             }
         }
+    }
+
+    public JSONArray getListErrorhandling(String dbEnv, String txnNo) throws SQLException {
+        JSONArray list = new JSONArray();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            Session session = getSessionMaster(dbEnv).openSession();
+            List params = new ArrayList<>();
+            StringBuilder cmd = new StringBuilder();
+            cmd.append("select * from t_sys_error_handling "
+                    + "where txn_no = '" + txnNo + "' "
+                    + "order by create_at DESC "
+                    + "LIMIT 1");
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
+
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                JSONObject obj = new JSONObject().put("uuid", ValidUtils.null2NoData(rs.getString("uuid")))
+                        .put("prod_code", ValidUtils.null2NoData(rs.getString("prod_code")))
+                        .put("txn_no", ValidUtils.null2NoData(rs.getString("txn_no")))
+                        .put("status", ValidUtils.null2NoData(rs.getString("status")))
+                        .put("create_at", ValidUtils.null2NoData(rs.getString("create_at")))
+                        .put("create_by", ValidUtils.null2NoData(rs.getString("create_by")))
+                        .put("update_at", ValidUtils.null2NoData(rs.getString("update_at")))
+                        .put("update_by", ValidUtils.null2NoData(rs.getString("update_by")))
+                        .put("remark", ValidUtils.null2NoData(rs.getString("remark")));
+                list.put(obj);
+            }
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
+        }
+        return list;
     }
 
 }

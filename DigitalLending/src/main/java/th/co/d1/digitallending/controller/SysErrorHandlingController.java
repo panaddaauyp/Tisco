@@ -55,45 +55,73 @@ public class SysErrorHandlingController {
     final static TfgLogger log = LogSingleton.getTfgLogger();
     Date sysdate = new Date();
 
-    @Log_decorator
+    //    @Log_decorator
     @RequestMapping(value = "/search", method = POST)
     @ResponseBody
     public ResponseEntity<?> getListErrorHandling(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
         logger.info("POST : /sys/errorhandling/search");
         log.info("POST : /sys/errorhandling/search");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "Det Data Complete").put("datas", new JSONArray());
         try {
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
-                String compName = (json.has("compName") ? json.getString("compName") : "");
-                String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
-                String ucid = (json.has("ucid") ? json.getString("ucid") : "");
-                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
-                String refNo = (json.has("refNo") ? json.getString("refNo") : "");
-                String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
-                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
-                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
-                String state = (json.has("state") ? json.getString("state") : "");
-                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";
-                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
-                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";
-                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
-                String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";
-                String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
-                String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-                returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
+                String txnNo = json.getString("txn_no");
+                if (txnNo != null && txnNo != "") {
+                    returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, txnNo));
+                } else {
+                    returnVal.put("status", 500).put("description", "require : txn_no !");
+                }
             }
         } catch (JSONException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
             log.error("" + e);
             //e.printStackTrace();
             returnVal.put("status", 500)
-                      .put("description", "" + e);
+                    .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
+//    @Log_decorator
+//    @RequestMapping(value = "/search", method = POST)
+//    @ResponseBody
+//    public ResponseEntity<?> getListErrorHandling(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
+//        logger.info("POST : /sys/errorhandling/search");
+//        log.info("POST : /sys/errorhandling/search");
+//        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+//        try {
+//            JSONObject datas = new JSONObject(reqBody);
+//            if (datas.has("data")) {
+//                JSONObject json = datas.getJSONObject("data");
+//                String compName = (json.has("compName") ? json.getString("compName") : "");
+//                String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
+//                String ucid = (json.has("ucid") ? json.getString("ucid") : "");
+//                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
+//                String refNo = (json.has("refNo") ? json.getString("refNo") : "");
+//                String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
+//                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
+//                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
+//                String state = (json.has("state") ? json.getString("state") : "");
+//                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";
+//                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
+//                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";
+//                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
+//                String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";
+//                String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
+//                String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
+//               
+//                returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
+//            }
+//        } catch (JSONException | NullPointerException | HibernateException e) {
+//            logger.info(e.getMessage());
+//            log.error("" + e);
+//            //e.printStackTrace();
+//            returnVal.put("status", 500)
+//                      .put("description", "" + e);
+//        }
+//        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+//    }
     @Log_decorator
     @RequestMapping(value = "save", method = POST, headers = "Accept=application/json")
     @ResponseBody
@@ -101,7 +129,7 @@ public class SysErrorHandlingController {
         logger.info("POST : /sys/errorhandling/save");
         log.info("POST : /sys/errorhandling/save");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
-       try {
+        try {
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("userInfo") && datas.has("data")) {
                 JSONObject objUser = datas.getJSONObject("userInfo");
@@ -120,7 +148,7 @@ public class SysErrorHandlingController {
                     String department = objData.has("department") ? objData.getString("department") : "";
                     Integer status = objData.has("status") ? objData.getInt("status") : 0;
                     String roleCode = objData.has("roleCode") ? objData.getString("roleCode") : "";
-                    SysErrorHandling erh = new SysErrorHandling();                   
+                    SysErrorHandling erh = new SysErrorHandling();
                     if (ehUuid.equals("")) {
                         erh = new SysErrorHandling();
                         erh.setUuid(getUUID());
@@ -129,7 +157,7 @@ public class SysErrorHandlingController {
                         erh = daoEh.getSysErrorHandlingByUuid(subState, ehUuid);
                         if (erh.getUuid() != null) {
                             erh.setUuid(erh.getUuid());
-                            
+
                             if (erh.getAttr9() != null || erh.getAttr9() != "") {
                                 String concat = erh.getAttr9() + "/" + status.toString();
                                 erh.setAttr9(concat);
@@ -164,21 +192,21 @@ public class SysErrorHandlingController {
                     erh.setAttr2(department);
                     erh.setCompUuid(compUuid);
                     erh.setStatus(status);
-                    
+
                     erh = daoEh.saveSysErrorHandling(subState, erh);
                 } else {
                     returnVal.put("status", 500)
-                              .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
+                            .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
                 }
             }
-       } catch (JSONException | NullPointerException | HibernateException e) {
-           logger.info(e.getMessage());
-           log.error("" + e);
-           //e.printStackTrace();
-           returnVal.put("status", 500)
-                     .put("description", "" + e);
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                    .put("description", "" + e);
 
-       }
+        }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
@@ -199,17 +227,14 @@ public class SysErrorHandlingController {
     //             String roleCode = objData.has("roleCode") ? objData.getString("roleCode") : "";
     //             String txnNo = objData.has("txnNo") ? objData.getString("txnNo") : "";
     //             Integer status = objData.has("status") ? objData.getInt("status") : 0;
-
     //             if (username != "" && uuid != "") {
     //                 SysErrorHandlingDao dao = new SysErrorHandlingDao();
     //                 JSONObject obj = new JSONObject();
     //                 obj = dao.updateByUuid(subState, uuid, username, status, department);
-                    
     //             } else {
     //                 returnVal.put("status", 500)
     //                           .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
     //             }
-
     //         }
     //     } catch (JSONException | NullPointerException | HibernateException e) {
     //         logger.info(e.getMessage());
@@ -217,7 +242,6 @@ public class SysErrorHandlingController {
     //         //e.printStackTrace();
     //         returnVal.put("status", 500)
     //                   .put("description", "" + e);
-
     //     }
     //     return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     // }
