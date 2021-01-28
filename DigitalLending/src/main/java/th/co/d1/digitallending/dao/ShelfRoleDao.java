@@ -149,8 +149,9 @@ public class ShelfRoleDao {
             cmd.append("SELECT RM.UUID UUIDRM, RM.ROLE_UUID ROLEUUID, RM.MENU_UUID MENUUUID, RM.STATUS STATUS, RM.ATTR10 STATUS_APPROVE, RF.UUID UUIDRF, RF.F_CREATE FCREATE, RF.F_EDIT FEDIT, "
             + "RF.F_DELETE FDELETE, RF.F_PREVIEW FPREVIEW, RF.F_EXPORT FEXPORT, RF.F_APPROVE FAPPROVE, "
             + "RF.F_TERMINATE FTERMINATE, RF.F_PAUSE FPAUSE, RF.F_START FSTART "
-            + "FROM T_SHELF_ROLE_FUNC RF, T_SHELF_ROLE_MENU RM "
-            + "WHERE RF.ROLE_MENU_ID = RM.UUID AND RM.STATUS != 225 order by RF.CREATE_AT DESC ");
+            + "FROM T_SHELF_ROLE_MENU RM "
+            + "LEFT JOIN T_SHELF_ROLE_FUNC RF ON RM.UUID = RF.ROLE_MENU_ID "
+            + "WHERE RM.STATUS != 225 order by RF.CREATE_AT DESC ");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {

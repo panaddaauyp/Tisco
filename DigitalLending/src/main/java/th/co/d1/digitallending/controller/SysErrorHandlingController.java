@@ -55,7 +55,7 @@ public class SysErrorHandlingController {
     final static TfgLogger log = LogSingleton.getTfgLogger();
     Date sysdate = new Date();
 
-    //    @Log_decorator
+    @Log_decorator
     @RequestMapping(value = "/search", method = POST)
     @ResponseBody
     public ResponseEntity<?> getListErrorHandling(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
@@ -66,21 +66,22 @@ public class SysErrorHandlingController {
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
-                String txnNo = json.getString("txnId");
-                String txnDateEnd = json.getString("txnDateEnd");
-                String txnDateStart = json.getString("txnDateStart");
-                String txnEndTime = json.getString("txnEndTime");
-                String txnStartTime = json.getString("txnStartTime");
+                String txnNo = (json.has("txnId") ? json.getString("txnId") : "");
+                String txnDateEnd = (json.has("txnDateEnd") ? json.getString("txnDateEnd") : "");
+                String txnDateStart = (json.has("txnDateStart") ? json.getString("txnDateStart") : "");
+                String txnEndTime = (json.has("txnEndTime") ? json.getString("txnEndTime") : "");
+                String txnStartTime = (json.has("txnStartTime") ? json.getString("txnStartTime") : "");
                 
                 if(txnStartTime != null && txnStartTime != ""){
                     txnDateStart = txnDateStart + " " + txnStartTime;
+                    System.out.println("txnDateStart : "+txnDateStart);
                 }
                 if(txnEndTime != null && txnEndTime != ""){
                     txnDateEnd = txnDateEnd + " " + txnStartTime;
+                    System.out.println("txnDateEnd : "+txnDateEnd);
                 }
-    
                 if (txnNo != null && txnNo != "") {
-                    returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, txnNo, txnDateStart,txnDateEnd));
+                    returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling2(subState, txnNo, txnDateStart,txnDateEnd));
                 } else {
                     returnVal.put("status", 500).put("description", "require : txn_no !");
                 }
@@ -95,45 +96,38 @@ public class SysErrorHandlingController {
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
-//    @Log_decorator
-//    @RequestMapping(value = "/search", method = POST)
-//    @ResponseBody
-//    public ResponseEntity<?> getListErrorHandling(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
-//        logger.info("POST : /sys/errorhandling/search");
-//        log.info("POST : /sys/errorhandling/search");
-//        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
-//        try {
-//            JSONObject datas = new JSONObject(reqBody);
-//            if (datas.has("data")) {
-//                JSONObject json = datas.getJSONObject("data");
-//                String compName = (json.has("compName") ? json.getString("compName") : "");
-//                String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
-//                String ucid = (json.has("ucid") ? json.getString("ucid") : "");
-//                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
-//                String refNo = (json.has("refNo") ? json.getString("refNo") : "");
-//                String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
-//                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
-//                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
-//                String state = (json.has("state") ? json.getString("state") : "");
-//                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";
-//                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
-//                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";
-//                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
-//                String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";
-//                String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
-//                String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-//               
-//                returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
-//            }
-//        } catch (JSONException | NullPointerException | HibernateException e) {
-//            logger.info(e.getMessage());
-//            log.error("" + e);
-//            //e.printStackTrace();
-//            returnVal.put("status", 500)
-//                      .put("description", "" + e);
-//        }
-//        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-//    }
+    @Log_decorator
+    @RequestMapping(value = "/searchdata", method = POST)
+    @ResponseBody
+    public ResponseEntity<?> getListErrorHandling2(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
+        logger.info("POST : /sys/errorhandling/search2");
+        log.info("POST : /sys/errorhandling/search2");
+        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
+        try {
+            JSONObject datas = new JSONObject(reqBody);
+            if (datas.has("data")) {
+                JSONObject json = datas.getJSONObject("data");
+                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
+                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
+                String state = (json.has("state") ? json.getString("state") : "");
+                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";
+                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
+                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";
+                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
+               
+                returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling(subState, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state));
+            }
+        } catch (JSONException | NullPointerException | HibernateException e) {
+            logger.info(e.getMessage());
+            log.error("" + e);
+            //e.printStackTrace();
+            returnVal.put("status", 500)
+                      .put("description", "" + e);
+        }
+        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
+    }
+    
+    
     @Log_decorator
     @RequestMapping(value = "save", method = POST, headers = "Accept=application/json")
     @ResponseBody
