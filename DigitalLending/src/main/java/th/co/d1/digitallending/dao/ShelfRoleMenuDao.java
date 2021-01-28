@@ -65,6 +65,92 @@ public class ShelfRoleMenuDao {
         return list;
     }
 
+    public JSONArray getShelfRoleMenusArray(String dbEnv, String[] role, Integer status) throws SQLException {
+        JSONArray list = new JSONArray();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        String roleTxt = "";
+
+        for (int i = 0; i < role.length; i++) {
+            if (i != (role.length - 1)) {
+                roleTxt = roleTxt + "'" + role[i] + "',";
+            } else {
+                roleTxt = roleTxt + "'" + role[i] + "'";
+            }
+        }
+        try {
+            Session session = getSessionMaster(dbEnv).openSession();
+            List params = new ArrayList<>();
+//            params.add(roleTxt);
+            StringBuilder cmd = new StringBuilder();
+
+//            cmd.append("select  distinct m.* from t_shelf_role_menu rm "
+//                    + "INNER JOIN  t_shelf_role r on r.uuid =  rm.role_uuid "
+//                    + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
+//                    + "where r.role_id in ("+roleTxt+") "
+//                    + "order by m.menu_name ");
+            cmd.append("SELECT m.*, "
+                    + "CASE WHEN SUM (CASE WHEN f_create = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_create, "
+                    + "CASE WHEN SUM(CASE WHEN f_edit = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_edit, "
+                    + "CASE WHEN SUM(CASE WHEN f_delete = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_delete, "
+                    + "CASE WHEN SUM(CASE WHEN f_preview = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_preview, "
+                    + "CASE WHEN SUM(CASE WHEN f_approve = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_approve, "
+                    + "CASE WHEN SUM(CASE WHEN f_terminate = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_terminate, "
+                    + "CASE WHEN SUM(CASE WHEN f_pause = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_pause, "
+                    + "CASE WHEN SUM(CASE WHEN f_start = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_start, "
+                    + "CASE WHEN SUM(CASE WHEN f_export = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_export "
+                    + "from t_shelf_role_menu rm "
+                    + "INNER JOIN  t_shelf_role r on r.uuid =  rm.role_uuid "
+                    + "INNER JOIN  t_shelf_role_func f on rm.uuid =  f.role_menu_id "
+                    + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
+                    + "where r.role_id in (" + roleTxt + ") "
+                    + "group by m.uuid,m.menu_name "
+                    + "order by m.menu_name");
+
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
+            if (params.size() > 0) {
+                for (int i = 0; i < params.size(); i++) {
+                    if (params.get(i) instanceof String) {
+                        ps.setString(i + 1, (String) params.get(i));
+                    } else {
+                        ps.setInt(i + 1, (Integer) params.get(i));
+                    }
+                }
+            }
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                JSONObject obj = new JSONObject().put("menucode", ValidUtils.null2NoData(rs.getString("menu_code")))
+                        .put("menuname", ValidUtils.null2NoData(rs.getString("menu_name")))
+                        .put("menuid", ValidUtils.null2NoData(rs.getString("uuid")))
+                        .put("menudesc", ValidUtils.null2NoData(rs.getString("description")))
+                        .put("menuurl", ValidUtils.null2NoData(rs.getString("menu_url")))
+                        .put("seqNo", ValidUtils.null2NoData(rs.getString("attr1")))
+                        .put("fpreview", ValidUtils.null2NoData(rs.getString("f_preview")))
+                        .put("fcreate", ValidUtils.null2NoData(rs.getString("f_create")))
+                        .put("fdelete", ValidUtils.null2NoData(rs.getString("f_delete")))
+                        .put("fapprove", ValidUtils.null2NoData(rs.getString("f_approve")))
+                        .put("fstart", ValidUtils.null2NoData(rs.getString("f_start")))
+                        .put("fpause", ValidUtils.null2NoData(rs.getString("f_pause")))
+                        .put("fterminate", ValidUtils.null2NoData(rs.getString("f_terminate")))
+                        .put("fedit", ValidUtils.null2NoData(rs.getString("f_edit")))
+                        .put("fexport", ValidUtils.null2NoData(rs.getString("f_export")));
+
+                list.put(obj);
+            }
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
+        }
+        return list;
+    }
+
     public List<ShelfRoleMenu> getShelfRolesMenus(String dbEnv, String[] role, Integer status) {
         List<ShelfRoleMenu> list = new ArrayList<>();
         Transaction trans = null;
@@ -101,7 +187,7 @@ public class ShelfRoleMenuDao {
             StringBuilder cmd = new StringBuilder();
             if (status != null) {
                 cmd.append("SELECT * FROM T_SHELF_ROLE_MENU WHERE ROLE_UUID IN ( "
-                          + "SELECT UUID FROM T_SHELF_ROLE WHERE STATUS = 213 ");
+                        + "SELECT UUID FROM T_SHELF_ROLE WHERE STATUS = 213 ");
                 if (null != role) {
                     cmd.append("AND ROLE_ID IN ( ? ");
                     params.add(role);
@@ -332,7 +418,7 @@ public class ShelfRoleMenuDao {
         }
     }
 
-    public JSONObject updateByRoleID(String dbEnv, String roleID ,String username,int status) {
+    public JSONObject updateByRoleID(String dbEnv, String roleID, String username, int status) {
         Transaction trans = null;
         PreparedStatement ps = null;
         Date sysdate = new Date();
@@ -340,12 +426,12 @@ public class ShelfRoleMenuDao {
             trans = session.beginTransaction();
             StringBuilder cmd = new StringBuilder();
             cmd.append("UPDATE T_SHELF_ROLE_MENU A SET "
-                      + "STATUS = "+status+" ,"
-                      + "UPDATE_AT = '" + sysdate.toString() +"', "
-                      + "UPDATE_BY = '" + username +"', "
-                      + "ATTR10 = "+status+", "
-                      + "ATTR9 = CONCAT(A.ATTR9,'/',"+status+") "
-                      + "where a.role_uuid = '" + roleID +"' ");
+                    + "STATUS = " + status + " ,"
+                    + "UPDATE_AT = '" + sysdate.toString() + "', "
+                    + "UPDATE_BY = '" + username + "', "
+                    + "ATTR10 = " + status + ", "
+                    + "ATTR9 = CONCAT(A.ATTR9,'/'," + status + ") "
+                    + "where a.role_uuid = '" + roleID + "' ");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
 
             ps.executeUpdate();
@@ -369,20 +455,20 @@ public class ShelfRoleMenuDao {
             }
         }
     }
-    
-    public JSONArray geByRoleID(String dbEnv, String roleID ,String username) throws SQLException{
+
+    public JSONArray geByRoleID(String dbEnv, String roleID, String username) throws SQLException {
         JSONArray list = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
         try (Session session = getSessionMaster(dbEnv).openSession()) {
             List params = new ArrayList<>();
             StringBuilder cmd = new StringBuilder();
-            cmd.append("select uuid " +
-                "from t_shelf_role_menu a " +
-                "where a.role_uuid = '"+roleID+"' " +
-                "AND a.status != 213");
+            cmd.append("select uuid "
+                    + "from t_shelf_role_menu a "
+                    + "where a.role_uuid = '" + roleID + "' "
+                    + "AND a.status != 213");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-           
+
             rs = ps.executeQuery();
             while (rs.next()) {
                 JSONObject obj = new JSONObject().put("uuid", ValidUtils.null2NoData(rs.getString("uuid")));

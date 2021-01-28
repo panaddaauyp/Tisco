@@ -7,7 +7,9 @@ package th.co.d1.digitallending.dao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
@@ -16,9 +18,11 @@ import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import th.co.d1.digitallending.entity.ShelfRoleFunc;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
+import th.co.d1.digitallending.util.ValidUtils;
 
 /**
  *
@@ -73,7 +77,7 @@ public class ShelfRoleFuncDao {
         }
         return roleFunc;
     }
-    
+
     public ShelfRoleFunc saveShelfRoleFunction(String dbEnv, ShelfRoleFunc list, String username) {
         Transaction trans = null;
         try {
@@ -91,8 +95,7 @@ public class ShelfRoleFuncDao {
         return list;
     }
 
-    
-    public JSONObject updateByRoleMenuUuid(String dbEnv, String listRoleMenu ,String username,int status) {
+    public JSONObject updateByRoleMenuUuid(String dbEnv, String listRoleMenu, String username, int status) {
         Transaction trans = null;
         PreparedStatement ps = null;
         Date sysdate = new Date();
@@ -100,14 +103,14 @@ public class ShelfRoleFuncDao {
             trans = session.beginTransaction();
             StringBuilder cmd = new StringBuilder();
             cmd.append("UPDATE T_SHELF_ROLE_FUNC A SET "
-                      + "STATUS = "+status+" ,"
-                      + "UPDATE_AT = '" + sysdate.toString() +"', "
-                      + "UPDATE_BY = '" + username +"', "
-                      + "ATTR10 = "+status+" ,"
-                      + "ATTR9 = CONCAT(A.ATTR9,'/',"+status+" ) "
-                      + "where a.role_menu_id in ("+listRoleMenu+") ");
+                    + "STATUS = " + status + " ,"
+                    + "UPDATE_AT = '" + sysdate.toString() + "', "
+                    + "UPDATE_BY = '" + username + "', "
+                    + "ATTR10 = " + status + " ,"
+                    + "ATTR9 = CONCAT(A.ATTR9,'/'," + status + " ) "
+                    + "where a.role_menu_id in (" + listRoleMenu + ") ");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-         
+
             ps.executeUpdate();
             trans.commit();
             ps.close();
@@ -129,5 +132,6 @@ public class ShelfRoleFuncDao {
             }
         }
     }
+
 
 }
