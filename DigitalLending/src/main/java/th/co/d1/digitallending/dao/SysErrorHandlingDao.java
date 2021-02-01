@@ -46,7 +46,7 @@ public class SysErrorHandlingDao {
         try (Session session = getSessionMaster(dbEnv).openSession()) {
             StringBuilder cmd = new StringBuilder();
             List params = new ArrayList<>();
-            cmd.append("SELECT log.* ,LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC, COMP.COMP_NAME COMPONENTNAME, ERR.UUID ERRUUID, ERR.PROD_CODE ERRPRODCODE, ERR.TXN_NO ERRTXNNO, ERR.STATUS ERRSTATUS, ERR.REMARK ERRREMARK, ERR.ATTR1 ERRATTR1, ERR.ATTR2 ERRATTR2, ERR.ATTR9 ERRATTR9, ERR.ATTR10 ERRATTR10, ERR.CREATE_AT ERRCREATEAT, ERR.CREATE_BY ERRCREATEBY, ERR.UPDATE_AT ERRUPDATEAT, ERR.UPDATE_BY ERRUPDATEBY, ERR.APPROVE_AT ERRAPPROVEAT, ERR.APPROVE_BY ERRAPPROVEBY "
+            cmd.append("SELECT log.* ,LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC, COMP.COMP_NAME COMPONENTNAME  "
                     + "FROM T_SYS_OPER_LOG LOG " 
                     + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID  " 
                     + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE " 
@@ -163,6 +163,7 @@ public class SysErrorHandlingDao {
                 JSONObject stepData = new JSONObject();
                 stepData.put("paymentMethod", sysOperLog.getPaymentMethod());
                 JSONArray packageDataArr = new JSONArray();
+                
                 while (stepDataRs.next()) {
                     byte[] decoded = Base64.decodeBase64(stepDataRs.getString("STEP_DATA"));
                     String stepDataIn = new String(decoded, "UTF-8");
@@ -210,6 +211,7 @@ public class SysErrorHandlingDao {
                 if (!psOperLog.isClosed()) {
                     psOperLog.close();
                 }
+                SysErrorHandling sysErr = getSysErrorHandlingByTxnNo(dbEnv, txnId);
                 if (ret.has("detail")) {
                     JSONObject obj = new JSONObject();
                     obj.put("txnsId", ValidUtils.null2NoData(sysOperLog.getTxnNo()))
@@ -235,21 +237,21 @@ public class SysErrorHandlingDao {
                             .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
                             .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
                             .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? rs.getString("COMPONENTNAME") : "")
-                            .put("erruuid", ValidUtils.null2NoData(rs.getString("ERRUUID")))
-                            .put("errprodcode", ValidUtils.null2NoData(rs.getString("ERRPRODCODE")))
-                            .put("errtxnNo", ValidUtils.null2NoData(rs.getString("ERRTXNNO")))
-                            .put("errstatus", ValidUtils.null2NoData(rs.getString("ERRSTATUS")))
-                            .put("errremark", ValidUtils.null2NoData(rs.getString("ERRREMARK")))
-                            .put("errattr1", ValidUtils.null2NoData(rs.getString("ERRATTR1")))
-                            .put("errattr2", ValidUtils.null2NoData(rs.getString("ERRATTR2")))
-                            .put("errattr9", ValidUtils.null2NoData(rs.getString("ERRATTR9")))
-                            .put("errattr10", ValidUtils.null2NoData(rs.getString("ERRATTR10")))
-                            .put("errcreateAt", ValidUtils.null2NoData(rs.getString("ERRCREATEAT")))
-                            .put("errcreateBy", ValidUtils.null2NoData(rs.getString("ERRCREATEBY")))
-                            .put("errupdateAt", ValidUtils.null2NoData(rs.getString("ERRUPDATEAT")))
-                            .put("errupdateBy", ValidUtils.null2NoData(rs.getString("ERRUPDATEBY")))
-                            .put("errapproveAt", ValidUtils.null2NoData(rs.getString("ERRAPPROVEAT")))
-                            .put("errapproveBy", ValidUtils.null2NoData(rs.getString("ERRAPPROVEBY")));
+                            .put("erruuid", ValidUtils.null2NoData(sysErr.getUuid() != null ? sysErr.getUuid() : ""))
+                            .put("errprodcode", ValidUtils.null2NoData(sysErr.getProdCode() != null ? sysErr.getProdCode() : ""))
+                            .put("errtxnNo", ValidUtils.null2NoData(sysErr.getTxnNo() != null ? sysErr.getTxnNo() : ""))
+                            .put("errstatus", ValidUtils.null2NoData(sysErr.getStatus()))
+                            .put("errremark", ValidUtils.null2NoData(sysErr.getRemark() != null ? sysErr.getRemark() : ""))
+                            .put("errattr1", ValidUtils.null2NoData(sysErr.getAttr1() != null ? sysErr.getAttr1() : ""))
+                            .put("errattr2", ValidUtils.null2NoData(sysErr.getAttr2() != null ? sysErr.getAttr2() : ""))
+                            .put("errattr9", ValidUtils.null2NoData(sysErr.getAttr9() != null ? sysErr.getAttr9() : ""))
+                            .put("errattr10", ValidUtils.null2NoData(sysErr.getAttr10() != null ? sysErr.getAttr10() : ""))
+                            .put("errcreateAt", ValidUtils.null2NoData(sysErr.getCreateAt() != null ? sysErr.getCreateAt() : ""))
+                            .put("errcreateBy", ValidUtils.null2NoData(sysErr.getCreateBy() != null ? sysErr.getCreateBy() : ""))
+                            .put("errupdateAt", ValidUtils.null2NoData(sysErr.getUpdateAt() != null ? sysErr.getUpdateAt() : ""))
+                            .put("errupdateBy", ValidUtils.null2NoData(sysErr.getUpdateBy() != null ? sysErr.getUpdateBy() : ""))
+                            .put("errapproveAt", ValidUtils.null2NoData(sysErr.getApproveAt() != null ? sysErr.getApproveAt() : ""))
+                            .put("errapproveBy", ValidUtils.null2NoData(sysErr.getApproveBy() != null ? sysErr.getApproveBy() : ""));
                     if (packageDataArr.length() == 0) {
                         String packageData = "[{'respDesc': '', 'code': '', 'data': { 'payDuedate': '', 'buDay': '', 'package': [], 'hpDueDate': '', 'channel': '', 'limit': '', 'hpNo': '', 'discount': '', 'term': '', 'payDate': '', 'lastDueDate': '' }, 'respCode': '', 'status': ''}]";
                         packageDataArr = new JSONArray(packageData);
@@ -326,19 +328,21 @@ public class SysErrorHandlingDao {
                             .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
                             .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
                             .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? rs.getString("COMPONENTNAME") : "")
-                            .put("errtxnNo", ValidUtils.null2NoData(rs.getString("ERRTXNNO")))
-                            .put("errstatus", ValidUtils.null2NoData(rs.getString("ERRSTATUS")))
-                            .put("errremark", ValidUtils.null2NoData(rs.getString("ERRREMARK")))
-                            .put("errattr1", ValidUtils.null2NoData(rs.getString("ERRATTR1")))
-                            .put("errattr2", ValidUtils.null2NoData(rs.getString("ERRATTR2")))
-                            .put("errattr9", ValidUtils.null2NoData(rs.getString("ERRATTR9")))
-                            .put("errattr10", ValidUtils.null2NoData(rs.getString("ERRATTR10")))
-                            .put("errcreateAt", ValidUtils.null2NoData(rs.getString("ERRCREATEAT")))
-                            .put("errcreateBy", ValidUtils.null2NoData(rs.getString("ERRCREATEBY")))
-                            .put("errupdateAt", ValidUtils.null2NoData(rs.getString("ERRUPDATEAT")))
-                            .put("errupdateBy", ValidUtils.null2NoData(rs.getString("ERRUPDATEBY")))
-                            .put("errapproveAt", ValidUtils.null2NoData(rs.getString("ERRAPPROVEAT")))
-                            .put("errapproveBy", ValidUtils.null2NoData(rs.getString("ERRAPPROVEBY")));
+                            .put("erruuid", ValidUtils.null2NoData(sysErr.getUuid() != null ? sysErr.getUuid() : ""))
+                            .put("errprodcode", ValidUtils.null2NoData(sysErr.getProdCode() != null ? sysErr.getProdCode() : ""))
+                            .put("errtxnNo", ValidUtils.null2NoData(sysErr.getTxnNo() != null ? sysErr.getTxnNo() : ""))
+                            .put("errstatus", ValidUtils.null2NoData(sysErr.getStatus()))
+                            .put("errremark", ValidUtils.null2NoData(sysErr.getRemark() != null ? sysErr.getRemark() : ""))
+                            .put("errattr1", ValidUtils.null2NoData(sysErr.getAttr1() != null ? sysErr.getAttr1() : ""))
+                            .put("errattr2", ValidUtils.null2NoData(sysErr.getAttr2() != null ? sysErr.getAttr2() : ""))
+                            .put("errattr9", ValidUtils.null2NoData(sysErr.getAttr9() != null ? sysErr.getAttr9() : ""))
+                            .put("errattr10", ValidUtils.null2NoData(sysErr.getAttr10() != null ? sysErr.getAttr10() : ""))
+                            .put("errcreateAt", ValidUtils.null2NoData(sysErr.getCreateAt() != null ? sysErr.getCreateAt() : ""))
+                            .put("errcreateBy", ValidUtils.null2NoData(sysErr.getCreateBy() != null ? sysErr.getCreateBy() : ""))
+                            .put("errupdateAt", ValidUtils.null2NoData(sysErr.getUpdateAt() != null ? sysErr.getUpdateAt() : ""))
+                            .put("errupdateBy", ValidUtils.null2NoData(sysErr.getUpdateBy() != null ? sysErr.getUpdateBy() : ""))
+                            .put("errapproveAt", ValidUtils.null2NoData(sysErr.getApproveAt() != null ? sysErr.getApproveAt() : ""))
+                            .put("errapproveBy", ValidUtils.null2NoData(sysErr.getApproveBy() != null ? sysErr.getApproveBy() : ""));
                     if (packageDataArr.length() == 0) {
                         String packageData = "[{'respDesc': '', 'code': '', 'data': { 'payDuedate': '', 'buDay': '', 'package': [], 'hpDueDate': '', 'channel': '', 'limit': '', 'hpNo': '', 'discount': '', 'term': '', 'payDate': '', 'lastDueDate': '' }, 'respCode': '', 'status': ''}]";
                         packageDataArr = new JSONArray(packageData);
