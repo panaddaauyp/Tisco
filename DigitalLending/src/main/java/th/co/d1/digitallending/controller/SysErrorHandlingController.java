@@ -55,53 +55,12 @@ public class SysErrorHandlingController {
     final static TfgLogger log = LogSingleton.getTfgLogger();
     Date sysdate = new Date();
 
-    @Log_decorator
-    @RequestMapping(value = "/search", method = POST)
-    @ResponseBody
-    public ResponseEntity<?> getListErrorHandling(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
-        logger.info("POST : /sys/errorhandling/search");
-        log.info("POST : /sys/errorhandling/search");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "Get Data Complete").put("datas", new JSONArray());
-        try {
-            JSONObject datas = new JSONObject(reqBody);
-            if (datas.has("data")) {
-                JSONObject json = datas.getJSONObject("data");
-                String txnNo = (json.has("txnId") ? json.getString("txnId") : "");
-                String txnDateEnd = (json.has("txnDateEnd") ? json.getString("txnDateEnd") : "");
-                String txnDateStart = (json.has("txnDateStart") ? json.getString("txnDateStart") : "");
-                String txnEndTime = (json.has("txnEndTime") ? json.getString("txnEndTime") : "");
-                String txnStartTime = (json.has("txnStartTime") ? json.getString("txnStartTime") : "");
-                
-                if(txnStartTime != null && txnStartTime != ""){
-                    txnDateStart = txnDateStart + " " + txnStartTime;
-                    System.out.println("txnDateStart : "+txnDateStart);
-                }
-                if(txnEndTime != null && txnEndTime != ""){
-                    txnDateEnd = txnDateEnd + " " + txnStartTime;
-                    System.out.println("txnDateEnd : "+txnDateEnd);
-                }
-                if (txnNo != null && txnNo != "") {
-                    returnVal.put("datas", new SysErrorHandlingDao().getListErrorhandling2(subState, txnNo, txnDateStart,txnDateEnd));
-                } else {
-                    returnVal.put("status", 500).put("description", "require : txn_no !");
-                }
-            }
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-    }
-
-    @Log_decorator
+   @Log_decorator
     @RequestMapping(value = "/searchdata", method = POST)
     @ResponseBody
     public ResponseEntity<?> getListErrorHandling2(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException, UnsupportedEncodingException, ParseException {
-        logger.info("POST : /sys/errorhandling/search2");
-        log.info("POST : /sys/errorhandling/search2");
+        logger.info("POST : /sys/errorhandling/searchdata");
+        log.info("POST : /sys/errorhandling/searchdata");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONObject datas = new JSONObject(reqBody);
@@ -216,39 +175,5 @@ public class SysErrorHandlingController {
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
-    // @Log_decorator
-    // @RequestMapping(value = "/updatestatus", method = POST)
-    // @ResponseBody
-    // public ResponseEntity<?> setUpdateStatus(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException {
-    //     logger.info("POST : /sys/errorhandling/updatestatus");
-    //     log.info("POST : /sys/errorhandling/updatestatus");
-    //     JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
-    //     try {
-    //         JSONObject datas = new JSONObject(reqBody);
-    //         JSONObject objData = datas.getJSONObject("data");
-    //         if (datas.has("data")) {
-    //             String username = objData.has("username") ? objData.getString("username") : "";
-    //             String uuid = objData.has("uuid") ? objData.getString("uuid") : "";
-    //             String department = objData.has("department") ? objData.getString("department") : "";
-    //             String roleCode = objData.has("roleCode") ? objData.getString("roleCode") : "";
-    //             String txnNo = objData.has("txnNo") ? objData.getString("txnNo") : "";
-    //             Integer status = objData.has("status") ? objData.getInt("status") : 0;
-    //             if (username != "" && uuid != "") {
-    //                 SysErrorHandlingDao dao = new SysErrorHandlingDao();
-    //                 JSONObject obj = new JSONObject();
-    //                 obj = dao.updateByUuid(subState, uuid, username, status, department);
-    //             } else {
-    //                 returnVal.put("status", 500)
-    //                           .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
-    //             }
-    //         }
-    //     } catch (JSONException | NullPointerException | HibernateException e) {
-    //         logger.info(e.getMessage());
-    //         log.error("" + e);
-    //         //e.printStackTrace();
-    //         returnVal.put("status", 500)
-    //                   .put("description", "" + e);
-    //     }
-    //     return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-    // }
+   
 }

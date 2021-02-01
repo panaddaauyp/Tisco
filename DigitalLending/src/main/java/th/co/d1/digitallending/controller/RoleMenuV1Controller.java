@@ -150,31 +150,88 @@ public class RoleMenuV1Controller {
             Integer status = StatusUtils.getActive(dbEnv).getStatusCode();
             List<ShelfRoleMenu> list = dao.getShelfRolesMenus(dbEnv, roles, status);
 
-            JSONArray listSrr = dao.getShelfRoleMenusArray(dbEnv, roles, status);
-            JSONArray arr2 = new JSONArray();
-            for (int i = 0; i < listSrr.length(); i++) {
-                JSONObject objMenu = new JSONObject();
-                objMenu = (JSONObject) listSrr.get(i);
-                JSONObject obj = new JSONObject();
-                obj.put("menucode", objMenu.get("menucode"));
-                obj.put("menuname", objMenu.get("menuname"));
-                obj.put("menuid", objMenu.get("menuid"));
-                obj.put("menudesc", objMenu.get("menudesc"));
-                obj.put("menuurl", objMenu.get("menuurl"));
-                obj.put("seqNo", objMenu.get("seqNo"));
+            // JSONArray listSrr = dao.getShelfRoleMenusArray(dbEnv, roles, status);
+            // JSONArray arr2 = new JSONArray();
+            // for (int i = 0; i < listSrr.length(); i++) {
+            //     JSONObject objMenu = new JSONObject();
+            //     objMenu = (JSONObject) listSrr.get(i);
+            //     JSONObject obj = new JSONObject();
+            //     obj.put("menucode", objMenu.get("menucode"));
+            //     obj.put("menuname", objMenu.get("menuname"));
+            //     obj.put("menuid", objMenu.get("menuid"));
+            //     obj.put("menudesc", objMenu.get("menudesc"));
+            //     obj.put("menuurl", objMenu.get("menuurl"));
+            //     obj.put("seqNo", objMenu.get("seqNo"));
                 
-                JSONObject objFunc = new JSONObject();
-                objFunc.put("fpreview", objMenu.get("fpreview"));
-                objFunc.put("fcreate", objMenu.get("fcreate"));
-                objFunc.put("fdelete", objMenu.get("fdelete"));
-                objFunc.put("fapprove", objMenu.get("fapprove"));
-                objFunc.put("fstart", objMenu.get("fstart"));
-                objFunc.put("fpause", objMenu.get("fpause"));
-                objFunc.put("fterminate", objMenu.get("fterminate"));
-                objFunc.put("fedit", objMenu.get("fedit"));
-                objFunc.put("fexport", objMenu.get("fexport"));
+            //     JSONObject objFunc = new JSONObject();
+            //     objFunc.put("fpreview", objMenu.get("fpreview"));
+            //     objFunc.put("fcreate", objMenu.get("fcreate"));
+            //     objFunc.put("fdelete", objMenu.get("fdelete"));
+            //     objFunc.put("fapprove", objMenu.get("fapprove"));
+            //     objFunc.put("fstart", objMenu.get("fstart"));
+            //     objFunc.put("fpause", objMenu.get("fpause"));
+            //     objFunc.put("fterminate", objMenu.get("fterminate"));
+            //     objFunc.put("fedit", objMenu.get("fedit"));
+            //     objFunc.put("fexport", objMenu.get("fexport"));
                 
                 
+            //    if (objFunc.get("fpreview").equals("Y")
+            //            || objFunc.get("fedit").equals("Y")
+            //            || objFunc.get("fapprove").equals("Y")
+            //            || objFunc.get("fcreate").equals("Y")
+            //            || objFunc.get("fexport").equals("Y")
+            //            || objFunc.get("fdelete").equals("Y")
+            //            || objFunc.get("fstart").equals("Y")
+            //            || objFunc.get("fpause").equals("Y")
+            //            || objFunc.get("fterminate").equals("Y")) {
+            //        obj.put("func", objFunc);
+            //        arr2.put(obj);
+            //    }
+
+            // }
+            // returnVal.put("datas", arr2);
+
+           JSONArray arr = new JSONArray();
+           for (ShelfRoleMenu sm : list) {
+               JSONObject obj = new JSONObject();
+               ShelfRoleFunc roleFunc = new ShelfRoleFunc();
+               ShelfRoleFuncDao funcDao = new ShelfRoleFuncDao();
+
+               obj.put("menucode", sm.getMenuUuid().getMenuCode())
+                       .put("menuname", sm.getMenuUuid().getMenuName())
+                       .put("menuid", sm.getMenuUuid().getUuid())
+                       .put("menudesc", sm.getMenuUuid().getDescription())
+                       .put("menuurl", sm.getMenuUuid().getMenuUrl())
+                       .put("seqNo", ValidUtils.null2NoData(sm.getMenuUuid().getAttr1()));
+
+               JSONObject objFunc = new JSONObject();
+               roleFunc = funcDao.getShelfRoleFuncByRoleMenuId(subState, sm.getUuid());
+
+               if (roleFunc != null) {
+                   objFunc.put("uuidrf", ValidUtils.null2NoData(roleFunc.getUuid()))
+                           .put("fpreview", ValidUtils.null2NoData(roleFunc.getFPreview()))
+                           .put("fedit", ValidUtils.null2NoData(roleFunc.getFEdit()))
+                           .put("fapprove", ValidUtils.null2NoData(roleFunc.getFApprove()))
+                           .put("fcreate", ValidUtils.null2NoData(roleFunc.getFCreate()))
+                           .put("fexport", ValidUtils.null2NoData(roleFunc.getFExport()))
+                           .put("fdelete", ValidUtils.null2NoData(roleFunc.getFDelete()))
+                           .put("fstart", ValidUtils.null2NoData(roleFunc.getfStart()))
+                           .put("fpause", ValidUtils.null2NoData(roleFunc.getfPause()))
+                           .put("fterminate", ValidUtils.null2NoData(roleFunc.getfTerminate()));
+               } else {
+
+                   objFunc.put("uuidrf", "")
+                           .put("fpreview", "N")
+                           .put("fedit", "N")
+                           .put("fapprove", "N")
+                           .put("fcreate", "N")
+                           .put("fexport", "N")
+                           .put("fdelete", "N")
+                           .put("fstart", "N")
+                           .put("fpause", "N")
+                           .put("fterminate", "N");
+               }
+
                if (objFunc.get("fpreview").equals("Y")
                        || objFunc.get("fedit").equals("Y")
                        || objFunc.get("fapprove").equals("Y")
@@ -185,68 +242,11 @@ public class RoleMenuV1Controller {
                        || objFunc.get("fpause").equals("Y")
                        || objFunc.get("fterminate").equals("Y")) {
                    obj.put("func", objFunc);
-                   arr2.put(obj);
+                   arr.put(obj);
                }
 
-            }
-            returnVal.put("datas", arr2);
-
-        //    JSONArray arr = new JSONArray();
-        //    for (ShelfRoleMenu sm : list) {
-        //        JSONObject obj = new JSONObject();
-        //        ShelfRoleFunc roleFunc = new ShelfRoleFunc();
-        //        ShelfRoleFuncDao funcDao = new ShelfRoleFuncDao();
-
-        //        obj.put("menucode", sm.getMenuUuid().getMenuCode())
-        //                .put("menuname", sm.getMenuUuid().getMenuName())
-        //                .put("menuid", sm.getMenuUuid().getUuid())
-        //                .put("menudesc", sm.getMenuUuid().getDescription())
-        //                .put("menuurl", sm.getMenuUuid().getMenuUrl())
-        //                .put("seqNo", ValidUtils.null2NoData(sm.getMenuUuid().getAttr1()));
-
-        //        JSONObject objFunc = new JSONObject();
-        //        roleFunc = funcDao.getShelfRoleFuncByRoleMenuId(subState, sm.getUuid());
-
-        //        if (roleFunc != null) {
-        //            objFunc.put("uuidrf", ValidUtils.null2NoData(roleFunc.getUuid()))
-        //                    .put("fpreview", ValidUtils.null2NoData(roleFunc.getFPreview()))
-        //                    .put("fedit", ValidUtils.null2NoData(roleFunc.getFEdit()))
-        //                    .put("fapprove", ValidUtils.null2NoData(roleFunc.getFApprove()))
-        //                    .put("fcreate", ValidUtils.null2NoData(roleFunc.getFCreate()))
-        //                    .put("fexport", ValidUtils.null2NoData(roleFunc.getFExport()))
-        //                    .put("fdelete", ValidUtils.null2NoData(roleFunc.getFDelete()))
-        //                    .put("fstart", ValidUtils.null2NoData(roleFunc.getfStart()))
-        //                    .put("fpause", ValidUtils.null2NoData(roleFunc.getfPause()))
-        //                    .put("fterminate", ValidUtils.null2NoData(roleFunc.getfTerminate()));
-        //        } else {
-
-        //            objFunc.put("uuidrf", "")
-        //                    .put("fpreview", "N")
-        //                    .put("fedit", "N")
-        //                    .put("fapprove", "N")
-        //                    .put("fcreate", "N")
-        //                    .put("fexport", "N")
-        //                    .put("fdelete", "N")
-        //                    .put("fstart", "N")
-        //                    .put("fpause", "N")
-        //                    .put("fterminate", "N");
-        //        }
-
-        //        if (objFunc.get("fpreview").equals("Y")
-        //                || objFunc.get("fedit").equals("Y")
-        //                || objFunc.get("fapprove").equals("Y")
-        //                || objFunc.get("fcreate").equals("Y")
-        //                || objFunc.get("fexport").equals("Y")
-        //                || objFunc.get("fdelete").equals("Y")
-        //                || objFunc.get("fstart").equals("Y")
-        //                || objFunc.get("fpause").equals("Y")
-        //                || objFunc.get("fterminate").equals("Y")) {
-        //            obj.put("func", objFunc);
-        //            arr.put(obj);
-        //        }
-
-        //    }
-        //     returnVal.put("datas", arr);
+           }
+            returnVal.put("datas", arr);
         } catch (JSONException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
             log.error("" + e);

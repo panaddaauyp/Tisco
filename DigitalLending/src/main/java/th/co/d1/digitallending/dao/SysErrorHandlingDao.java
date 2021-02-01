@@ -16,9 +16,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 import org.apache.commons.codec.binary.Base64;
+import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.criterion.Restrictions;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import static th.co.d1.digitallending.dao.SysOperLogDao.logger;
@@ -51,7 +53,7 @@ public class SysErrorHandlingDao {
                     + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID " 
                     + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE " 
                     + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID " 
-                    + "INNER JOIN T_SYS_ERROR_HANDLING ERR ON LOG.TXN_NO = ERR.TXN_NO " 
+                    + "LEFT JOIN T_SYS_ERROR_HANDLING ERR ON LOG.TXN_NO = ERR.TXN_NO " 
                     + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE  " 
                     + "WHERE log.uuid IN " 
                     + "( select uuid from ( " 
@@ -59,9 +61,7 @@ public class SysErrorHandlingDao {
                     + "log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO " 
                     + "from t_sys_oper_log log )A  where A.ROW_NO = 1 ) " 
                     + "AND LOG.PRODUCT_COMPONENT_ID = COMP.UUID " 
-                    + "AND LOG.STATE_CODE IN ('f5901202-0ed8-4f9a-a749-0832cff442b0', 'bf710db4-3625-4e68-a308-e1606a5e7155', '09c6873b-9a77-41fb-8ed6-14e94ed8bc56') " 
-                    + "AND ERR.UUID IN ( SELECT UUID FROM ( SELECT UUID, row_number() over (partition by txn_no order by TO_TIMESTAMP( \n" 
-                    + "ERR.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, ERR.CREATE_AT desc) as ROW_NO from T_SYS_ERROR_HANDLING log )A  where A.ROW_NO = 1 )");
+                    + "AND LOG.STATE_CODE IN ('f5901202-0ed8-4f9a-a749-0832cff442b0', 'bf710db4-3625-4e68-a308-e1606a5e7155', '09c6873b-9a77-41fb-8ed6-14e94ed8bc56') ");
             if (null != state && !state.isEmpty()) {
                 cmd.append(" AND LOG.STATE_CODE = (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE = ?) ");
                 params.add(state);
@@ -155,14 +155,6 @@ public class SysErrorHandlingDao {
                 String errNameEn = rs.getString("ERR_NAME_EN");
                 String errNameDesc = rs.getString("ERR_DESC");
                 
-//                .put("status", ValidUtils.null2NoData(rs.getString("ERRSTATUS")))
-//                .put("remark", ValidUtils.null2NoData(rs.getString("ERRREMARK")))
-//                .put("attr1", ValidUtils.null2NoData(rs.getString("ERRATTR1")))
-//                .put("createAt", ValidUtils.null2NoData(rs.getString("ERRCREATEAT")))
-//                .put("createBy", ValidUtils.null2NoData(rs.getString("ERRCREATEBY")))
-//                .put("updateAt", ValidUtils.null2NoData(rs.getString("ERRUPDATEAT")))
-//                .put("updateBy", ValidUtils.null2NoData(rs.getString("ERRUPDATEBY")))
-                
                 cmd.setLength(0);
                 cmd.append("SELECT STEP_DATA, PAYMENT_METHOD FROM T_SYS_OPER_LOG WHERE TXN_NO = ? AND STATE_CODE in (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE in ('PRO1011','PRO1032'))"); //PRO1011
                 psOperLog = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
@@ -243,12 +235,14 @@ public class SysErrorHandlingDao {
                             .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
                             .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
                             .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? rs.getString("COMPONENTNAME") : "")
+                            .put("erruuid", ValidUtils.null2NoData(rs.getString("ERRUUID")))
+                            .put("errprodcode", ValidUtils.null2NoData(rs.getString("ERRPRODCODE")))
                             .put("errtxnNo", ValidUtils.null2NoData(rs.getString("ERRTXNNO")))
                             .put("errstatus", ValidUtils.null2NoData(rs.getString("ERRSTATUS")))
                             .put("errremark", ValidUtils.null2NoData(rs.getString("ERRREMARK")))
                             .put("errattr1", ValidUtils.null2NoData(rs.getString("ERRATTR1")))
                             .put("errattr2", ValidUtils.null2NoData(rs.getString("ERRATTR2")))
-                            .put("errattr91", ValidUtils.null2NoData(rs.getString("ERRATTR9")))
+                            .put("errattr9", ValidUtils.null2NoData(rs.getString("ERRATTR9")))
                             .put("errattr10", ValidUtils.null2NoData(rs.getString("ERRATTR10")))
                             .put("errcreateAt", ValidUtils.null2NoData(rs.getString("ERRCREATEAT")))
                             .put("errcreateBy", ValidUtils.null2NoData(rs.getString("ERRCREATEBY")))
@@ -337,7 +331,7 @@ public class SysErrorHandlingDao {
                             .put("errremark", ValidUtils.null2NoData(rs.getString("ERRREMARK")))
                             .put("errattr1", ValidUtils.null2NoData(rs.getString("ERRATTR1")))
                             .put("errattr2", ValidUtils.null2NoData(rs.getString("ERRATTR2")))
-                            .put("errattr91", ValidUtils.null2NoData(rs.getString("ERRATTR9")))
+                            .put("errattr9", ValidUtils.null2NoData(rs.getString("ERRATTR9")))
                             .put("errattr10", ValidUtils.null2NoData(rs.getString("ERRATTR10")))
                             .put("errcreateAt", ValidUtils.null2NoData(rs.getString("ERRCREATEAT")))
                             .put("errcreateBy", ValidUtils.null2NoData(rs.getString("ERRCREATEBY")))
@@ -478,122 +472,29 @@ public class SysErrorHandlingDao {
         }
     }
 
-    public JSONArray getListErrorhandling2(String dbEnv, String txnNo, String txnDateStart, String txnDateEnd) throws SQLException {
-        JSONArray list = new JSONArray();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            Session session = getSessionMaster(dbEnv).openSession();
-            List params = new ArrayList<>();
-            StringBuilder cmd = new StringBuilder();
-            
-
-//            cmd.append("select * from t_sys_error_handling a"
-//                    + " INNER JOIN ("
-//                    + "	select  txn_no,max(create_at) as create_at from t_sys_error_handling where"
-//                    + "	create_at BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')"
-//                    + "	group by txn_no ) b on (a.txn_no = b.txn_no and a.create_at = b.create_at )");
-//
-//            if (txnNo != "" && txnNo != null && txnNo.length() > 0) {
-//                cmd.append(" WHERE a.txn_no = ? ");
-//                params.add(txnNo);
-//            }
-            cmd.append("SELECT ERR.TXN_NO ERRTXNNO, ERR.STATUS ERRSTATUS, ERR.REMARK ERRREMARK, ERR.ATTR1 ERRATTR1, "
-                      + "ERR.CREATE_AT ERRCREATEAT, ERR.CREATE_BY ERRCREATEBY, ERR.UPDATE_AT ERRUPDATEAT, ERR.UPDATE_BY ERRUPDATEBY, "
-                      + "LOG.PRODUCT_CODE LOGPRODUCTCODE, LOG.REF_NO LOGREFNO, LOG.CASE_ID LOGCASEID, LOG.SOURCE_DEVICE LOGSOURCEDEVICE, "
-                      + "LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH LOOKUP_NAME_TH, "
-                      + "SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY, LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, "
-                      + "LK2.DESCRIPTION ERR_DESC, COMP.COMP_NAME COMPONENTNAME "
-                      + "FROM T_SYS_OPER_LOG LOG "
-                      + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID "
-                      + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
-                      + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
-                      + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
-                      + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
-                      + "INNER JOIN T_SYS_ERROR_HANDLING ERR ON LOG.txn_no = ERR.txn_no "
-                      + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE "
-                      + "WHERE log.uuid IN ( select uuid from ( "
-                      + "select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP( "
-                      + "log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "
-                      + "from t_sys_oper_log log )A  where A.ROW_NO = 1 ) "
-                      + "AND LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
-                      + "AND LOG.STATE_CODE in ('f5901202-0ed8-4f9a-a749-0832cff442b0', "
-                      + "'bf710db4-3625-4e68-a308-e1606a5e7155', "
-                      + "'09c6873b-9a77-41fb-8ed6-14e94ed8bc56') "
-                      + "AND ERR.uuid IN ( select uuid from ( select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP( "
-                      + "ERR.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, ERR.CREATE_AT desc) as ROW_NO from T_SYS_ERROR_HANDLING log )A  where A.ROW_NO = 1 ) "
-                      + "AND LOG.TXN_NO = '" + txnNo + "' ");
-
-            //cmd.append("AND LOG.create_at BETWEEN TO_TIMESTAMP( '" + txnDateStart + "', 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP('" + txnDateEnd + "', 'DD/MM/YYYY HH24:MI:SS')");
-//            params.add(txnDateStart);
-//            params.add(txnDateEnd);
-//            if (txnNo != "" && txnNo != null && txnNo.length() > 0) {
-//                cmd.append("AND LOG.TXN_NO = ? ");
-//                params.add(txnNo);
-//            }
-//            System.out.println("txnDateStart : "+txnDateStart);
-//            System.out.println("txnDateEnd : "+txnDateEnd);
-//            if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
-//                cmd.append(" AND LOG.CREATE_AT BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-//                params.add(txnDateStart);
-//                params.add(txnDateEnd);
-//            } else if ((null == txnDateStart || txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
-//                cmd.append(" AND LOG.CREATE_AT <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-//                params.add(txnDateEnd);
-//            } else if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null == txnDateEnd || txnDateEnd.isEmpty())) {
-//                cmd.append(" AND LOG.CREATE_AT >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-//                params.add(txnDateStart);
-//            }
-
-            System.out.println("cmd : " + cmd);
-
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                JSONObject obj = new JSONObject().put("txnNo", ValidUtils.null2NoData(rs.getString("ERRTXNNO")))
-                        .put("status", ValidUtils.null2NoData(rs.getString("ERRSTATUS")))
-                        .put("remark", ValidUtils.null2NoData(rs.getString("ERRREMARK")))
-                        .put("attr1", ValidUtils.null2NoData(rs.getString("ERRATTR1")))
-                        .put("createAt", ValidUtils.null2NoData(rs.getString("ERRCREATEAT")))
-                        .put("createBy", ValidUtils.null2NoData(rs.getString("ERRCREATEBY")))
-                        .put("updateAt", ValidUtils.null2NoData(rs.getString("ERRUPDATEAT")))
-                        .put("updateBy", ValidUtils.null2NoData(rs.getString("ERRUPDATEBY")))
-                        .put("productCode", ValidUtils.null2NoData(rs.getString("LOGPRODUCTCODE")))
-                        .put("refNo", ValidUtils.null2NoData(rs.getString("LOGREFNO")))
-                         .put("caseId", ValidUtils.null2NoData(rs.getString("LOGCASEID")))//
-                         .put("stCode", ValidUtils.null2NoData(rs.getString("ST_CODE ")))
-                         .put("state", ValidUtils.null2NoData(rs.getString("STATE_NAME")))
-                         .put("lookupNameTh", ValidUtils.null2NoData(rs.getString("LOOKUP_NAME_TH")))
-                         .put("statusName", ValidUtils.null2NoData(rs.getString("STATUS_NAME")))
-                         .put("company", ValidUtils.null2NoData(rs.getString("COMPANY")))
-                         .put("errNameTh", ValidUtils.null2NoData(rs.getString("ERR_NAME_TH")))
-                         .put("errNameEn", ValidUtils.null2NoData(rs.getString("ERR_NAME_EN")))
-                         .put("errDesc", ValidUtils.null2NoData(rs.getString("ERR_DESC")))
-                         .put("componentname", ValidUtils.null2NoData(rs.getString("COMPONENTNAME")));
-
-                list.put(obj);
+    
+    
+    public SysErrorHandling getSysErrorHandlingByTxnNo(String dbEnv, String txnNo) {
+        SysErrorHandling err = new SysErrorHandling();
+        Transaction trans = null;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            trans = session.beginTransaction();
+            Criteria criteria = session.createCriteria(SysErrorHandling.class);
+            criteria.add(Restrictions.eq("txnNo", txnNo));
+            List<SysErrorHandling> list = criteria.list();
+            trans.commit();
+            if (null != list && list.size() > 0) {
+                err = list.get(0);
             }
         } catch (HibernateException | NullPointerException e) {
             logger.info(e.getMessage());
+            //e.printStackTrace();
+            if (null != trans) {
+                trans.rollback();
+            }
             throw e;
-        } finally {
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
         }
-        return list;
+        return err;
     }
-
+    
 }

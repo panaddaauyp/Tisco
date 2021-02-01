@@ -89,7 +89,8 @@ public class ShelfRoleMenuDao {
 //                    + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
 //                    + "where r.role_id in ("+roleTxt+") "
 //                    + "order by m.menu_name ");
-            cmd.append("SELECT m.*, "
+            cmd.append("SELECT m.uuid,m.menu_code,m.menu_name,m.description,m.menu_url,m.attr1, "
+            //cmd.append("SELECT m.* , "
                     + "CASE WHEN SUM (CASE WHEN f_create = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_create, "
                     + "CASE WHEN SUM(CASE WHEN f_edit = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_edit, "
                     + "CASE WHEN SUM(CASE WHEN f_delete = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_delete, "
@@ -104,19 +105,20 @@ public class ShelfRoleMenuDao {
                     + "INNER JOIN  t_shelf_role_func f on rm.uuid =  f.role_menu_id "
                     + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
                     + "where r.role_id in (" + roleTxt + ") "
-                    + "group by m.uuid,m.menu_name "
+                    + "group by m.uuid,m.menu_code,m.menu_name,m.description,m.menu_url,m.attr1 "
+                    // + "group by m.uuid,m.menu_code "
                     + "order by m.menu_name");
 
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
+            // ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
+            // if (params.size() > 0) {
+            //     for (int i = 0; i < params.size(); i++) {
+            //         if (params.get(i) instanceof String) {
+            //             ps.setString(i + 1, (String) params.get(i));
+            //         } else {
+            //             ps.setInt(i + 1, (Integer) params.get(i));
+            //         }
+            //     }
+            // }
             rs = ps.executeQuery();
             while (rs.next()) {
                 JSONObject obj = new JSONObject().put("menucode", ValidUtils.null2NoData(rs.getString("menu_code")))
