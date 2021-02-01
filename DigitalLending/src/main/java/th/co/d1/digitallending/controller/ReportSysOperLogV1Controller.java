@@ -98,7 +98,21 @@ public class ReportSysOperLogV1Controller {
                 Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
                 String state = json.has("state") ? json.getString("state") : "";
                 String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-                returnVal.put("datas", new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId));
+                
+                int p = json.getInt("page");
+                System.out.println("p : "+p);
+                int offSet = (p-1) * 10;
+                JSONObject objReturn = new JSONObject();
+                objReturn = new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId,offSet);
+                int total = new SysOperLogDao().getTransactionReportCount(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId);
+                JSONObject option = new JSONObject();
+                option.put("page", p);
+                option.put("next", p+1);
+                option.put("prev", p-1);
+                option.put("total", total);  
+                returnVal .put("option", option);
+                
+                returnVal.put("datas",objReturn);
             }
         } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
