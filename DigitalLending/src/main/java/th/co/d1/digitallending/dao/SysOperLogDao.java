@@ -654,7 +654,7 @@ public class SysOperLogDao {
         return ret;
     }
 
-    public JSONObject getTransactionReport(String dbEnv, String prodCode, String txnId, String refNo, String ucId, String paymentMethod, String startDate, String endDate, String startTime, String endTime, Integer status, String state, String refTxnId, int offSet) throws SQLException, UnsupportedEncodingException, ParseException {
+    public JSONObject getTransactionReport(String dbEnv, String prodCode, String txnId, String refNo, String ucId, String paymentMethod, String startDate, String endDate, String startTime, String endTime, Integer status, String state, String refTxnId, int offSet ,int page) throws SQLException, UnsupportedEncodingException, ParseException {
         JSONObject ret = new JSONObject();
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, stepDataRs = null;
@@ -761,10 +761,10 @@ public class SysOperLogDao {
                 params.add(state);
             }
             transactionCmd.append(" ORDER BY LOG.CREATE_AT ASC");
-            transactionCmd.append(" LIMIT 10 OFFSET ? ");
-            params.add(offSet);
-
-            System.out.println("transactionCmd.toString() : " + transactionCmd.toString());
+            if (page > 0) {
+                transactionCmd.append(" LIMIT 10 OFFSET ? ");
+                params.add(offSet);
+            }
 
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transactionCmd.toString());
             if (params.size() > 0) {
@@ -1024,7 +1024,7 @@ public class SysOperLogDao {
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, stepDataRs = null;
         String cutOff = "";
-        int total = 0 ; 
+        int total = 0;
         try (Session session = getSessionMaster(dbEnv).openSession()) {
             StringBuilder transactionCmd = new StringBuilder();
             List params = new ArrayList<>();
@@ -2476,7 +2476,7 @@ public class SysOperLogDao {
 
     public JSONObject getTransferTransaction(String dbEnv, String compCode, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart,
             String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId, String traceNo, String minAmount,
-            String maxAmount, Integer prospect) throws SQLException, UnsupportedEncodingException, ParseException {
+            String maxAmount, Integer prospect, int offSet,int page) throws SQLException, UnsupportedEncodingException, ParseException {
         JSONObject ret = new JSONObject();
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, stepDataRs = null;
@@ -2601,6 +2601,11 @@ public class SysOperLogDao {
                 params.add(ValidUtils.str2Dec(maxAmount));
             }
             transferCmd.append(" ORDER BY LOG.CREATE_AT ASC ");
+            if (page > 0) {
+                transferCmd.append(" LIMIT 10 OFFSET ? ");
+                params.add(offSet);
+            }
+            System.out.println("transferCmd : "+transferCmd);
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transferCmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -2916,6 +2921,171 @@ public class SysOperLogDao {
             }
         }
         return ret;
+    }
+
+    public int getTransferTransactionCount(String dbEnv, String compCode, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart,
+            String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId, String traceNo, String minAmount,
+            String maxAmount, Integer prospect) throws SQLException, UnsupportedEncodingException, ParseException {
+        JSONObject ret = new JSONObject();
+        PreparedStatement ps = null, psOperLog = null;
+        ResultSet rs = null, stepDataRs = null;
+        String cutOff = "";
+        int total = 0;
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            StringBuilder transferCmd = new StringBuilder();
+            List params = new ArrayList<>();
+            transferCmd.append("select count(LOG.uuid) AS total "
+                    + "from t_sys_oper_log LOG "
+                    + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID  "
+                    + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
+                    + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
+                    + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
+                    + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
+                    + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE "
+                    + "WHERE LOG.PRODUCT_COMPONENT_ID = COMP.UUID ");
+            if (null != state && !state.isEmpty()) {
+                transferCmd.append(" AND LOG.STATE_CODE = (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE = ?) ");
+                params.add(state);
+            }
+            if (null != status) {
+                transferCmd.append(" AND LOG.STATUS = ? ");
+                params.add(status);
+            }
+            if (null != compCode && !compCode.isEmpty()) {
+                transferCmd.append(" AND LOG.PRODUCT_COMPONENT_ID = ? ");
+                params.add(compCode);
+            }
+            if (null != groupProduct && !groupProduct.isEmpty()) {
+                transferCmd.append(" AND LOG.GROUP_PRODUCT = ? ");
+                params.add(groupProduct);
+            }
+            if (null != prodCode && !prodCode.isEmpty()) {
+                transferCmd.append(" AND LOG.PRODUCT_CODE = ? ");
+                params.add(prodCode);
+            }
+            if (null != txnId && !txnId.isEmpty()) {
+                transferCmd.append(" AND LOWER(LOG.TXN_NO) LIKE ? ");
+                params.add("%" + txnId.toLowerCase() + "%");
+            }
+            if (null != refNo && !refNo.isEmpty()) {
+                transferCmd.append(" AND LOG.REF_NO LIKE ? ");
+                params.add("%" + refNo + "%");
+            }
+            if (null != ucId && !ucId.isEmpty()) {
+                String id[] = ucId.replace("(", "").replace(")", "").replace("'", "").split(",");
+                StringBuilder subCmd = new StringBuilder();
+                subCmd.append(" AND LOG.ATTR1 in ( ? ");
+
+                for (int i = 1; i < id.length; i++) {
+                    subCmd.append(", ? ");
+                }
+                subCmd.append(") ");
+                for (int i = 0; i < id.length; i++) {
+                    params.add(id[i]);
+                }
+                transferCmd.append(subCmd);
+            }
+            if (null != refTxnId && !refTxnId.isEmpty()) {
+                String id[] = refTxnId.replace("(", "").replace(")", "").replace("'", "").split(",");
+                StringBuilder subCmd = new StringBuilder();
+                subCmd.append(" AND LOWER(LOG.TXN_NO) in ( ? ");
+                for (int i = 1; i < id.length; i++) {
+                    subCmd.append(", ? ");
+                }
+                subCmd.append(") ");
+                for (int i = 0; i < id.length; i++) {
+                    params.add(id[i].toLowerCase());
+                }
+                transferCmd.append(subCmd);
+            }
+            if (null != paymentMethod && !paymentMethod.isEmpty()) {
+                transferCmd.append(" AND LOG.PAYMENT_METHOD = ? ");
+                params.add(paymentMethod);
+            }
+            if (null != txnStartTime && !txnStartTime.isEmpty()) {
+                txnStartTime += ":00";
+            } else {
+                txnStartTime = "00:00:00";
+            }
+            if (null != txnEndTime && !txnEndTime.isEmpty()) {
+                txnEndTime += ":59";
+            } else {
+                txnEndTime = "23:59:59";
+            }
+            if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
+                transferCmd.append(" AND LOG.CREATE_AT BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(txnDateStart + " " + txnStartTime);
+                params.add(txnDateEnd + " " + txnEndTime);
+            } else if ((null == txnDateStart || txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
+                transferCmd.append(" AND LOG.CREATE_AT <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(txnDateEnd + " " + txnEndTime);
+            } else if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null == txnDateEnd || txnDateEnd.isEmpty())) {
+                transferCmd.append(" AND LOG.CREATE_AT >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(txnDateStart + " " + txnStartTime);
+            }
+            if ((null != paymentDateStart && !paymentDateStart.isEmpty()) && (null != paymentDateEnd && !paymentDateEnd.isEmpty())) {
+                transferCmd.append(" AND LOG.PAYMENT_DATE BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(paymentDateStart + " 00:00:00");
+                params.add(paymentDateEnd + " 23:59:59");
+            } else if ((null == paymentDateStart || paymentDateStart.isEmpty()) && (null != paymentDateEnd && !paymentDateEnd.isEmpty())) {
+                transferCmd.append(" AND LOG.PAYMENT_DATE <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(paymentDateEnd + " 23:59:59");
+            } else if ((null != paymentDateStart && !paymentDateStart.isEmpty()) && (null == paymentDateEnd || paymentDateEnd.isEmpty())) {
+                transferCmd.append(" AND LOG.PAYMENT_DATE >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(paymentDateStart + " 00:00:00");
+            }
+            if (null != traceNo && !traceNo.isEmpty()) {
+                transferCmd.append(" AND LOG.ATTR6 = ? ");
+                params.add(traceNo);
+            }
+            if ((null != minAmount && !minAmount.isEmpty()) && (null != maxAmount && !maxAmount.isEmpty())) {
+                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) >= ? ");
+                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) <= ? ");
+                params.add(ValidUtils.str2Dec(minAmount));
+                params.add(ValidUtils.str2Dec(maxAmount));
+            } else if ((null != minAmount && !minAmount.isEmpty()) && (null == maxAmount || maxAmount.isEmpty())) {
+                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) >= ? ");
+                params.add(ValidUtils.str2Dec(minAmount));
+            } else if ((null != maxAmount && !maxAmount.isEmpty()) && (null == minAmount || minAmount.isEmpty())) {
+                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) <= ? ");
+                params.add(ValidUtils.str2Dec(maxAmount));
+            }
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transferCmd.toString());
+            if (params.size() > 0) {
+                for (int i = 0; i < params.size(); i++) {
+                    if (params.get(i) instanceof String) {
+                        ps.setString(i + 1, (String) params.get(i));
+                    } else if (params.get(i) instanceof BigDecimal) {
+                        ps.setBigDecimal(i + 1, (BigDecimal) params.get(i));
+                    } else {
+                        ps.setInt(i + 1, (Integer) params.get(i));
+                    }
+                }
+            }
+            rs = ps.executeQuery();
+            JSONArray listDetail = new JSONArray();
+            JSONObject header = new JSONObject();
+            while (rs.next()) {
+                total = rs.getInt("total");
+            }
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
+        } finally {
+            if (stepDataRs != null && !stepDataRs.isClosed()) {
+                stepDataRs.close();
+            }
+            if (psOperLog != null && !psOperLog.isClosed()) {
+                psOperLog.close();
+            }
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
+        }
+        return total;
     }
 
     public JSONObject getDataHistory(String dbEnv, String company, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart, String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
