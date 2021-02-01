@@ -212,6 +212,7 @@ public class SysErrorHandlingDao {
                     psOperLog.close();
                 }
                 SysErrorHandling sysErr = getSysErrorHandlingByTxnNo(dbEnv, txnId);
+                System.out.println("getSysErrorHandlingByTxnNo: "+sysErr);
                 if (ret.has("detail")) {
                     JSONObject obj = new JSONObject();
                     obj.put("txnsId", ValidUtils.null2NoData(sysOperLog.getTxnNo()))
