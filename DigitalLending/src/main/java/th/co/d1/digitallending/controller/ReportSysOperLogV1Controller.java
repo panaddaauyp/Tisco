@@ -98,21 +98,22 @@ public class ReportSysOperLogV1Controller {
                 Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
                 String state = json.has("state") ? json.getString("state") : "";
                 String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-                
-                int p = json.getInt("page");
-                System.out.println("p : "+p);
-                int offSet = (p-1) * 10;
+
+                int page = json.getInt("page");
+            
+                int offSet = (page - 1) * 10;
                 JSONObject objReturn = new JSONObject();
-                objReturn = new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId,offSet);
+
+                objReturn = new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId, offSet, page);
                 int total = new SysOperLogDao().getTransactionReportCount(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId);
                 JSONObject option = new JSONObject();
-                option.put("page", p);
-                option.put("next", p+1);
-                option.put("prev", p-1);
-                option.put("total", total);  
-                returnVal .put("option", option);
-                
-                returnVal.put("datas",objReturn);
+                option.put("page", page);
+                option.put("next", page + 1);
+                option.put("prev", page - 1);
+                option.put("total",(int) Math.ceil(total / 10));
+                returnVal.put("option", option);
+
+                returnVal.put("datas", objReturn);
             }
         } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
@@ -220,8 +221,28 @@ public class ReportSysOperLogV1Controller {
                 String minAmount = (json.has("minAmount") ? json.getString("minAmount") : "");
                 String maxAmount = (json.has("maxAmount") ? json.getString("maxAmount") : "");
                 Integer prospect = StatusUtils.getProspect(subState).getStatusCode();
-                returnVal.put("datas", new SysOperLogDao().getTransferTransaction(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
-                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect));
+
+                int page = json.getInt("page");
+                int offSet = (page - 1) * 10;
+                System.out.println("offSet : "+offSet);
+                JSONObject objReturn = new JSONObject();
+                objReturn = new SysOperLogDao().getTransferTransaction(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
+                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect ,offSet,page);
+
+                int total = new SysOperLogDao().getTransferTransactionCount(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
+                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect);
+
+                JSONObject option = new JSONObject();
+                option.put("page", page);
+                option.put("next", page + 1);
+                option.put("prev", page - 1);
+                option.put("total",(int) Math.ceil(total / 10));
+                returnVal.put("option", option);
+
+                returnVal.put("datas", objReturn);
+
+//                returnVal.put("datas", new SysOperLogDao().getTransferTransaction(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
+//                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect));
             }
         } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
@@ -233,7 +254,6 @@ public class ReportSysOperLogV1Controller {
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
-    
     @Log_decorator
     @RequestMapping(value = "/history/search", method = POST)
     @ResponseBody
