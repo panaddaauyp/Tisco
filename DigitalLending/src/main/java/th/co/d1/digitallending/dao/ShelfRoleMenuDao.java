@@ -90,7 +90,7 @@ public class ShelfRoleMenuDao {
 //                    + "where r.role_id in ("+roleTxt+") "
 //                    + "order by m.menu_name ");
             cmd.append("SELECT m.uuid,m.menu_code,m.menu_name,m.description,m.menu_url,m.attr1, "
-            //cmd.append("SELECT m.* , "
+//            cmd.append("SELECT m.* , "
                     + "CASE WHEN SUM (CASE WHEN f_create = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_create, "
                     + "CASE WHEN SUM(CASE WHEN f_edit = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_edit, "
                     + "CASE WHEN SUM(CASE WHEN f_delete = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_delete, "
@@ -106,10 +106,10 @@ public class ShelfRoleMenuDao {
                     + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
                     + "where r.role_id in (" + roleTxt + ") "
                     + "group by m.uuid,m.menu_code,m.menu_name,m.description,m.menu_url,m.attr1 "
-                    // + "group by m.uuid,m.menu_code "
+//                    + "group by m.uuid,m.menu_code "
                     + "order by m.menu_name");
 
-            // ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
+             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
             // if (params.size() > 0) {
             //     for (int i = 0; i < params.size(); i++) {
             //         if (params.get(i) instanceof String) {
@@ -135,7 +135,8 @@ public class ShelfRoleMenuDao {
                         .put("fpause", ValidUtils.null2NoData(rs.getString("f_pause")))
                         .put("fterminate", ValidUtils.null2NoData(rs.getString("f_terminate")))
                         .put("fedit", ValidUtils.null2NoData(rs.getString("f_edit")))
-                        .put("fexport", ValidUtils.null2NoData(rs.getString("f_export")));
+                        .put("fexport", ValidUtils.null2NoData(rs.getString("f_export")))
+                        ;
 
                 list.put(obj);
             }

@@ -181,7 +181,7 @@
             <artifactId>tfglog</artifactId>
             <scope>system</scope>
             <version>1.0.38</version>
-			<systemPath>${basedir}/src/main/resources/libs/tfglog-1.0.38.jar</systemPath>
+            <systemPath>${basedir}/src/main/resources/libs/tfglog-1.0.38.jar</systemPath>
         </dependency>
         <!--        <dependency>
             <groupId>net.sf.jasperreports</groupId>
@@ -267,7 +267,7 @@
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/commons-fileupload/commons-fileupload -->
-		<!--
+        <!--
         <dependency>
             <groupId>commons-fileupload</groupId>
             <artifactId>commons-fileupload</artifactId>
@@ -287,10 +287,10 @@
             <version>1.1.6</version>
         </dependency>
 
-        <!--<dependency>
+<!--        <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-c3p0</artifactId>
-            <version>5.3.0.Beta2</version>
+            <version>5.4.27.Final</version>
         </dependency>-->
 
         <!--        <dependency>
@@ -632,15 +632,15 @@
         </plugins>
     </build>
     <distributionManagement>
-		<repository>
-			<id>central</id>
-			<name>ip-10-242-12-207.ap-southeast-1.compute.internal-releases</name>
-			<url>http://lib-repo-server:8080/artifactory/libs-release-local</url>
-		</repository>
-		<snapshotRepository>
-			<id>snapshots</id>
-			<name>ip-10-242-12-207.ap-southeast-1.compute.internal-snapshots</name>
-			<url>http://lib-repo-server:8080/artifactory/libs-release-local</url>
-		</snapshotRepository>
-	</distributionManagement>
+        <repository>
+            <id>central</id>
+            <name>ip-10-242-12-207.ap-southeast-1.compute.internal-releases</name>
+            <url>http://lib-repo-server:8080/artifactory/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <name>ip-10-242-12-207.ap-southeast-1.compute.internal-snapshots</name>
+            <url>http://lib-repo-server:8080/artifactory/libs-release-local</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>
