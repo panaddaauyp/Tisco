@@ -1284,6 +1284,7 @@ public class ProductV1Controller {
             Integer statusActive = StatusUtils.getActive(subState).getStatusCode();
             Integer wait2pause = StatusUtils.getWaittoPause(subState).getStatusCode();
             Integer wait2Terminate = StatusUtils.getWaittoTerminate(subState).getStatusCode();
+            Integer wait2Start = StatusUtils.getWaittoStart(subState).getStatusCode();
             Integer pause = StatusUtils.getPause(subState).getStatusCode();
             ShelfProduct shelfProduct = null;
             ShelfProductVcs vcsPause = new ShelfProductVcs();
@@ -1291,7 +1292,7 @@ public class ProductV1Controller {
                 for (ShelfProduct prod : list) {
                     List<ShelfProductVcs> listVcs = prod.getShelfProductVcsList();
                     for (ShelfProductVcs vcs : listVcs) {
-                        if (vcs.getCompUuid() == null && (statusActive.equals(vcs.getStatus()) || wait2pause.equals(vcs.getStatus()) || wait2Terminate.equals(vcs.getStatus()))) {
+                        if (vcs.getCompUuid() == null && (statusActive.equals(vcs.getStatus()) || wait2pause.equals(vcs.getStatus()) || wait2Terminate.equals(vcs.getStatus()) || wait2Start.equals(vcs.getStatus()))) {
                             shelfProduct = vcs.getProdUuid();
                             isActive = true;
                         } else if (vcs.getCompUuid() == null && pause.equals(vcs.getStatus())) {
