@@ -3109,7 +3109,7 @@ public class SysOperLogDao {
                       + "AND SYS.PRODUCT_COMPONENT_ID = PROD_VCS.COMP_UUID AND PROD_VCS.COMP_STATUS = 213 " );
             
             if (null != txnId && !txnId.isEmpty()) {
-                cmd.append(" AND LOWER(LOG.TXN_NO) LIKE ? ");
+                cmd.append(" AND LOWER(SYS.TXN_NO) LIKE ? ");
                 params.add("%" + txnId.toLowerCase() + "%");
             }
             
@@ -3128,6 +3128,7 @@ public class SysOperLogDao {
                 }
             }
             rs = ps.executeQuery();
+            System.out.println("ps  :  "+ps);
             JSONArray listDetail = new JSONArray();
             JSONObject header = new JSONObject();
             while (rs.next()) {
