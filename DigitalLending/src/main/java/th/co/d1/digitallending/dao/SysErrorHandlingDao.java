@@ -477,8 +477,6 @@ public class SysErrorHandlingDao {
         }
     }
 
-    
-    
     public SysErrorHandling getSysErrorHandlingByTxnNo(String dbEnv, String txnNo) {
         SysErrorHandling err = new SysErrorHandling();
         Transaction trans = null;
