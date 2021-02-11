@@ -159,6 +159,7 @@ public class SysErrorHandlingController {
                     erh.setStatus(status);
 
                     erh = daoEh.saveSysErrorHandling(subState, erh);
+                    returnVal.put("uuid", erh.getUuid());
                 } else {
                     returnVal.put("status", 500)
                             .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
