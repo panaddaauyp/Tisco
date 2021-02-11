@@ -275,7 +275,7 @@ public class ShelfProductDao {
         return shelfProductList;
     }
 
-    public JSONArray getListProductOnload(String dbEnv, String urlname) throws SQLException {
+    public JSONArray getListProductOnload(String dbEnv,String urlname) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -284,15 +284,15 @@ public class ShelfProductDao {
             StringBuilder searchProdCmd = new StringBuilder();
             if (null == urlname || urlname.isEmpty()) {
                 searchProdCmd.append(
-                        " SELECT UUID, PROD_CODE, PROD_NAME FROM T_SHELF_PRODUCT "
-                        + " WHERE UUID IN ( SELECT PRODUCT_UUID FROM T_MAP_MENU_PRODUCT WHERE STATUS = 213 "
-                        + " AND MENU_UUID IN ( SELECT UUID FROM T_SHELF_MENU ) "
-                        + " ) ");
+                    " SELECT UUID, PROD_CODE, PROD_NAME FROM T_SHELF_PRODUCT "
+                    + " WHERE UUID IN ( SELECT PRODUCT_UUID FROM T_MAP_MENU_PRODUCT WHERE STATUS = 213 "
+                    + " AND MENU_UUID IN ( SELECT UUID FROM T_SHELF_MENU ) "
+                    + " ) ");
             } else {
                 searchProdCmd.append(
-                        " SELECT UUID, PROD_CODE, PROD_NAME FROM T_SHELF_PRODUCT "
-                        + " WHERE UUID IN ( SELECT PRODUCT_UUID FROM T_MAP_MENU_PRODUCT WHERE STATUS = 213 "
-                        + " AND MENU_UUID IN ( SELECT UUID FROM T_SHELF_MENU ");
+                    " SELECT UUID, PROD_CODE, PROD_NAME FROM T_SHELF_PRODUCT "
+                    + " WHERE UUID IN ( SELECT PRODUCT_UUID FROM T_MAP_MENU_PRODUCT WHERE STATUS = 213 "
+                    + " AND MENU_UUID IN ( SELECT UUID FROM T_SHELF_MENU ");
                 if (null != urlname && !urlname.isEmpty()) {
                     searchProdCmd.append(" WHERE MENU_URL = ? ");
                     params.add(urlname);
@@ -331,7 +331,7 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListShelfProductOnShelfDep(String dbEnv, String department) throws SQLException {
+    public JSONArray getListShelfProductOnShelfDep(String dbEnv,String department) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -340,11 +340,11 @@ public class ShelfProductDao {
             StringBuilder searchProdCmd = new StringBuilder();
             if (department == null || department == "") {
                 searchProdCmd.append(
-                        "SELECT SP.UUID, SP.PROD_CODE, SP.PROD_NAME FROM T_SHELF_PRODUCT SP "
-                        + "INNER JOIN T_MAP_MENU_PRODUCT MP ON SP.UUID = MP.PRODUCT_UUID "
-                        + "WHERE SP.UUID IN (SELECT PROD_UUID FROM T_SHELF_PRODUCT_VCS "
-                        + "WHERE UUID IN (SELECT TRN_UUID FROM T_SHELF_PRODUCT_DTL WHERE LK_CODE = 'operDepartment') "
-                        + "AND STATUS = 213 )");
+                    "SELECT SP.UUID, SP.PROD_CODE, SP.PROD_NAME FROM T_SHELF_PRODUCT SP "
+                    + "INNER JOIN T_MAP_MENU_PRODUCT MP ON SP.UUID = MP.PRODUCT_UUID "
+                    + "WHERE SP.UUID IN (SELECT PROD_UUID FROM T_SHELF_PRODUCT_VCS "
+                    + "WHERE UUID IN (SELECT TRN_UUID FROM T_SHELF_PRODUCT_DTL WHERE LK_CODE = 'operDepartment') "
+                    + "AND STATUS = 213 )");
             } else {
                 searchProdCmd.append(
                         "SELECT SP.UUID, SP.PROD_CODE, SP.PROD_NAME FROM T_SHELF_PRODUCT SP "
@@ -506,7 +506,7 @@ public class ShelfProductDao {
     }
 
     public List<JSONObject> searchProduct(String subState, String templateName, String productName, JSONArray status,
-            String startActiveDate, String endActiveDate, String startUpdateDate, String endUpdateDate, String updateBy, int offSet ,int page)
+            String startActiveDate, String endActiveDate, String startUpdateDate, String endUpdateDate, String updateBy)
             throws SQLException {
         List<JSONObject> ret = new ArrayList<>();
         PreparedStatement ps = null, psDtl = null;
@@ -587,10 +587,6 @@ public class ShelfProductDao {
             }
             searchProdCmd.append(" ORDER BY VCS.UPDATE_AT DESC");
 //            searchProdCmd.append(" ORDER BY SP.PROD_CODE, SP.PROD_NAME DESC");
-            if (page > 0) {
-                searchProdCmd.append(" LIMIT 10 OFFSET ? ");
-                params.add(offSet);
-            }
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(searchProdCmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -737,122 +733,6 @@ public class ShelfProductDao {
         }
 //        Utils.sortJSONObjectByKey(ret, "updateDate", false);
         return ret;
-    }
-
-    public int searchProductCount(String subState, String templateName, String productName, JSONArray status,
-            String startActiveDate, String endActiveDate, String startUpdateDate, String endUpdateDate, String updateBy)
-            throws SQLException {
-        List<JSONObject> ret = new ArrayList<>();
-        PreparedStatement ps = null, psDtl = null;
-        ResultSet rs = null, rsDtl = null;
-        int total = 0;
-        try (Session session = getSessionMaster(subState).openSession()) {
-            Integer statusActive = StatusUtils.getActive(subState).getStatusCode();
-            Integer statusWaitDelete = StatusUtils.getWaittoDelete(subState).getStatusCode();
-            Integer statusDelete = StatusUtils.getDelete(subState).getStatusCode();
-            Integer statusTerminate = StatusUtils.getTerminate(subState).getStatusCode();
-            List params = new ArrayList<>();
-            StringBuilder searchProdCmd = new StringBuilder();
-            
-            searchProdCmd.append(
-                    "select count(LOG.uuid) AS total FROM T_SHELF_PRODUCT_VCS VCS "
-                    + " INNER JOIN T_SHELF_PRODUCT SP ON VCS.PROD_UUID = SP.UUID "
-                    + " INNER JOIN T_SHELF_PRODUCT_DTL DTL ON VCS.UUID = DTL.TRN_UUID "
-                    + " INNER JOIN T_SHELF_TMP TMP ON VCS.TEM_UUID = TMP.UUID "
-                    + " INNER JOIN T_SHELF_THEME THEME ON VCS.THEME_UUID = THEME.UUID "
-                    + " INNER JOIN T_SYS_LOOKUP LK ON VCS.STATUS::text = LK.LOOKUP_CODE "
-                    + " WHERE VCS.COMP_UUID IS NULL " + " AND VCS.STATUS <> 215 ");
-            if (null != templateName && !templateName.isEmpty()) {
-                searchProdCmd
-                        .append(" AND VCS.TEM_UUID IN (SELECT UUID FROM T_SHELF_TMP WHERE LOWER(TMP_NAME) LIKE ?) ");
-                params.add("%" + templateName.toLowerCase() + "%");
-            }
-            if (null != productName && !productName.isEmpty()) {
-                searchProdCmd.append(
-                        " AND VCS.PROD_UUID IN (SELECT UUID FROM T_SHELF_PRODUCT WHERE LOWER(PROD_NAME) LIKE ?) ");
-                params.add("%" + productName.toLowerCase() + "%");
-            }
-            if (status.length() > 0) {
-                searchProdCmd.append(" AND VCS.STATUS IN (? ");
-                for (int i = 1; i < status.length(); i++) {
-                    params.add(status.getInt(i - 1));
-                    searchProdCmd.append(", ? ");
-                }
-                params.add(status.getInt(status.length() - 1));
-                searchProdCmd.append(") ");
-            }
-            if ((null != startActiveDate && !startActiveDate.isEmpty())
-                    && (null != endActiveDate && !endActiveDate.isEmpty())) {
-                searchProdCmd.append(
-                        " AND COALESCE(VCS.UPDATE_AT,VCS.CREATE_AT) BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(startActiveDate + " " + "00:00:00");
-                params.add(endActiveDate + " " + "23:59:59");
-            } else if ((null == startActiveDate || startActiveDate.isEmpty())
-                    && (null != endActiveDate && !endActiveDate.isEmpty())) {
-                searchProdCmd.append(
-                        " AND COALESCE(VCS.UPDATE_AT,VCS.CREATE_AT) <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(endActiveDate + " " + "23:59:59");
-            } else if ((null != startActiveDate && !startActiveDate.isEmpty())
-                    && (null == endActiveDate || endActiveDate.isEmpty())) {
-                searchProdCmd.append(
-                        " AND COALESCE(VCS.UPDATE_AT,VCS.CREATE_AT) >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(startActiveDate + " " + "00:00:00");
-            }
-            searchProdCmd.append(" AND DTL.LK_CODE = 'activeDate' ");
-            if ((null != startUpdateDate && !startUpdateDate.isEmpty())
-                    && (null != endUpdateDate && !endUpdateDate.isEmpty())) {
-                searchProdCmd
-                        .append(" AND DTL.LK_VALUE BETWEEN TO_DATE(?, 'DD/MM/YYYY') AND TO_TIMESTAMP(?, 'DD/MM/YYYY')");
-                params.add(startUpdateDate);
-                params.add(endUpdateDate);
-            } else if ((null == startUpdateDate || startUpdateDate.isEmpty())
-                    && (null != endUpdateDate && !endUpdateDate.isEmpty())) {
-                searchProdCmd.append(" AND DTL.LK_VALUE <= TO_DATE(?, 'DD/MM/YYYY')");
-                params.add(endUpdateDate);
-            } else if ((null != startUpdateDate && !startUpdateDate.isEmpty())
-                    && (null == endUpdateDate || endUpdateDate.isEmpty())) {
-                searchProdCmd.append(" AND DTL.LK_VALUE >= TO_DATE(?, 'DD/MM/YYYY')");
-                params.add(startUpdateDate);
-            }
-            if (null != updateBy && !updateBy.isEmpty()) {
-                searchProdCmd.append(" AND LOWER(COALESCE(VCS.UPDATE_BY,VCS.CREATE_BY))  LIKE ?");
-                params.add("%" + updateBy.toLowerCase() + "%");
-            }
-            searchProdCmd.append(" ORDER BY VCS.UPDATE_AT DESC");
-//            searchProdCmd.append(" ORDER BY SP.PROD_CODE, SP.PROD_NAME DESC");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(searchProdCmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                total = rs.getInt("total");
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (rsDtl != null && !rsDtl.isClosed()) {
-                rsDtl.close();
-            }
-            if (psDtl != null && !psDtl.isClosed()) {
-                psDtl.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
-        }
-//        Utils.sortJSONObjectByKey(ret, "updateDate", false);
-        return total;
     }
 
     public JSONArray listProductUse(String subState, String productCode) throws SQLException {
@@ -1092,7 +972,7 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListMapProductStatus(String dbEnv, String product) throws SQLException {
+    public JSONArray getListMapProductStatus(String dbEnv,String product) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -1101,21 +981,21 @@ public class ShelfProductDao {
             StringBuilder cmd = new StringBuilder();
             if (null == product || product.isEmpty()) {
                 cmd.append("SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + "FROM T_SYS_LOOKUP "
-                        + "WHERE UUID IN (SELECT STATUS_UUID FROM T_MAP_PRODUCT_STATUS "
-                        + "WHERE STATUS = 213 )");
+                            + "FROM T_SYS_LOOKUP "
+                            + "WHERE UUID IN (SELECT STATUS_UUID FROM T_MAP_PRODUCT_STATUS "
+                            + "WHERE STATUS = 213 )");
             } else {
                 cmd.append("SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + "FROM T_SYS_LOOKUP "
-                        + "WHERE UUID IN (SELECT STATUS_UUID FROM T_MAP_PRODUCT_STATUS "
-                        + "WHERE STATUS = 213 ");
+                            + "FROM T_SYS_LOOKUP "
+                            + "WHERE UUID IN (SELECT STATUS_UUID FROM T_MAP_PRODUCT_STATUS "
+                            + "WHERE STATUS = 213 ");
                 if (null != product && !product.isEmpty()) {
                     cmd.append("AND PRODUCT_UUID = ? ");
                     params.add(product);
                 }
                 cmd.append(" )");
             }
-
+            
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -1149,7 +1029,7 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListMapStatusComponent(String dbEnv, String status) throws SQLException {
+    public JSONArray getListMapStatusComponent(String dbEnv,String status) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -1158,14 +1038,14 @@ public class ShelfProductDao {
             StringBuilder cmd = new StringBuilder();
             if (null == status || status.isEmpty()) {
                 cmd.append("SELECT UUID, SEQ_NO, COMP_CODE, COMP_NAME "
-                        + "FROM T_SHELF_COMP "
-                        + "WHERE UUID IN (SELECT COMPONENT_UUID FROM T_MAP_STATUS_COMPONENT "
-                        + "WHERE STATUS = 213 ) ORDER BY SEQ_NO ASC ");
+                + "FROM T_SHELF_COMP "
+                + "WHERE UUID IN (SELECT COMPONENT_UUID FROM T_MAP_STATUS_COMPONENT "
+                + "WHERE STATUS = 213 ) ORDER BY SEQ_NO ASC ");
             } else {
                 cmd.append("SELECT UUID, SEQ_NO, COMP_CODE, COMP_NAME "
-                        + "FROM T_SHELF_COMP "
-                        + "WHERE UUID IN (SELECT COMPONENT_UUID FROM T_MAP_STATUS_COMPONENT "
-                        + "WHERE STATUS = 213 ");
+                            + "FROM T_SHELF_COMP "
+                            + "WHERE UUID IN (SELECT COMPONENT_UUID FROM T_MAP_STATUS_COMPONENT "
+                            + "WHERE STATUS = 213 ");
                 if (null != status && !status.isEmpty()) {
                     cmd.append("AND STATUS_UUID = ? ");
                     params.add(status);
@@ -1204,7 +1084,9 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListStateByCompStatus(String dbEnv, String component, String status) throws SQLException {
+
+
+    public JSONArray getListStateByCompStatus(String dbEnv, String component, String status) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -1213,16 +1095,16 @@ public class ShelfProductDao {
             StringBuilder cmd = new StringBuilder();
             if (component == "" || status == "") {
                 cmd.append("SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + "FROM T_SHELF_LOOKUP "
-                        + "WHERE UUID IN (SELECT MSS.STATE_UUID FROM T_MAP_STATUS_STATE MSS "
-                        + "INNER JOIN T_MAP_STATUS_COMPONENT MSC ON MSS.STATUS_UUID = MSC.STATUS_UUID "
-                        + "WHERE MSS.STATUS = 213 AND MSC.STATUS = 213 )");
+                            + "FROM T_SHELF_LOOKUP "
+                            + "WHERE UUID IN (SELECT MSS.STATE_UUID FROM T_MAP_STATUS_STATE MSS "
+                            + "INNER JOIN T_MAP_STATUS_COMPONENT MSC ON MSS.STATUS_UUID = MSC.STATUS_UUID "
+                            + "WHERE MSS.STATUS = 213 AND MSC.STATUS = 213 )");
             } else {
                 cmd.append("SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + "FROM T_SHELF_LOOKUP "
-                        + "WHERE UUID IN (SELECT MSS.STATE_UUID FROM T_MAP_STATUS_STATE MSS "
-                        + "INNER JOIN T_MAP_STATUS_COMPONENT MSC ON MSS.STATUS_UUID = MSC.STATUS_UUID "
-                        + "WHERE MSS.STATUS = 213 AND MSC.STATUS = 213 ");
+                            + "FROM T_SHELF_LOOKUP "
+                            + "WHERE UUID IN (SELECT MSS.STATE_UUID FROM T_MAP_STATUS_STATE MSS "
+                            + "INNER JOIN T_MAP_STATUS_COMPONENT MSC ON MSS.STATUS_UUID = MSC.STATUS_UUID "
+                            + "WHERE MSS.STATUS = 213 AND MSC.STATUS = 213 ");
                 if (null != component && !component.isEmpty()) {
                     cmd.append("AND MSC.STATUS_UUID = ? ");
                     params.add(component);
@@ -1266,7 +1148,7 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListStateByStataus(String dbEnv, String status) throws SQLException {
+    public JSONArray getListStateByStataus(String dbEnv, String status) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -1275,19 +1157,19 @@ public class ShelfProductDao {
             StringBuilder cmd = new StringBuilder();
             if (null == status || status.isEmpty()) {
                 cmd.append("SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + " FROM T_SHELF_LOOKUP "
-                        + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_STATUS_STATE WHERE STATUS = 213 )");
+                + " FROM T_SHELF_LOOKUP "
+                + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_STATUS_STATE WHERE STATUS = 213 )");
             }
-            if (null != status && !status.isEmpty()) {
+            if (null != status && !status.isEmpty() ) {
                 cmd.append(" SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + " FROM T_SHELF_LOOKUP "
-                        + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_STATUS_STATE WHERE STATUS = 213 ");
+                + " FROM T_SHELF_LOOKUP "
+                + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_STATUS_STATE WHERE STATUS = 213 ");
                 if (null != status && !status.isEmpty()) {
                     cmd.append(" AND STATUS_UUID = ? ");
                     params.add(status);
                 }
                 cmd.append(" ) ");
-            }
+            } 
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -1321,7 +1203,7 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListStateByComponent(String dbEnv, String component) throws SQLException {
+    public JSONArray getListStateByComponent(String dbEnv, String component) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -1330,19 +1212,19 @@ public class ShelfProductDao {
             StringBuilder cmd = new StringBuilder();
             if (null == component || component.isEmpty()) {
                 cmd.append("SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + " FROM T_SHELF_LOOKUP "
-                        + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_COMPONENT_STATE WHERE STATUS = 213 )");
+                + " FROM T_SHELF_LOOKUP "
+                + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_COMPONENT_STATE WHERE STATUS = 213 )");
             }
-            if (null != component && !component.isEmpty()) {
+            if (null != component && !component.isEmpty() ) {
                 cmd.append(" SELECT UUID, LOOKUP_CODE, LOOKUP_NAME_TH, LOOKUP_NAME_EN, LOOKUP_VALUE "
-                        + " FROM T_SHELF_LOOKUP "
-                        + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_COMPONENT_STATE WHERE STATUS = 213 ");
+                + " FROM T_SHELF_LOOKUP "
+                + " WHERE UUID IN (	SELECT STATE_UUID FROM T_MAP_COMPONENT_STATE WHERE STATUS = 213 ");
                 if (null != component && !component.isEmpty()) {
                     cmd.append(" AND COMPONENT_UUID = ? ");
                     params.add(component);
                 }
                 cmd.append(" ) ");
-            }
+            } 
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -1376,17 +1258,17 @@ public class ShelfProductDao {
         return ret;
     }
 
-    public JSONArray getListShelfComponentOnShelf(String dbEnv) throws SQLException {
+    public JSONArray getListShelfComponentOnShelf(String dbEnv) throws SQLException{
         JSONArray ret = new JSONArray();
         PreparedStatement ps = null;
         ResultSet rs = null;
         try (Session session = getSessionMaster(dbEnv).openSession()) {
             List params = new ArrayList<>();
             StringBuilder cmd = new StringBuilder();
-            cmd.append("SELECT UUID, SEQ_NO, COMP_CODE, COMP_NAME "
-                    + "FROM T_SHELF_COMP "
-                    + "WHERE UUID IN (SELECT COMPONENT_UUID FROM T_MAP_STATUS_COMPONENT "
-                    + "WHERE STATUS = 213 ) ORDER BY SEQ_NO ASC ");
+                cmd.append("SELECT UUID, SEQ_NO, COMP_CODE, COMP_NAME "
+                + "FROM T_SHELF_COMP "
+                + "WHERE UUID IN (SELECT COMPONENT_UUID FROM T_MAP_STATUS_COMPONENT "
+                + "WHERE STATUS = 213 ) ORDER BY SEQ_NO ASC ");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -1418,7 +1300,7 @@ public class ShelfProductDao {
         }
         return ret;
     }
-
+    
     public List<ShelfProduct> getProductByCode(String dbEnv, String prodCode) {
         List<ShelfProduct> prods = new ArrayList<>();
         Transaction trans = null;
@@ -1439,5 +1321,5 @@ public class ShelfProductDao {
         }
         return prods;
     }
-
+    
 }

@@ -40,7 +40,6 @@ import th.co.d1.digitallending.dao.ShelfProductDao;
 import th.co.d1.digitallending.dao.ShelfProductDtlDao;
 import th.co.d1.digitallending.dao.ShelfProductVcsDao;
 import th.co.d1.digitallending.dao.ShelfTmpDao;
-import th.co.d1.digitallending.dao.SysOperLogDao;
 import th.co.d1.digitallending.entity.ShelfComp;
 import th.co.d1.digitallending.entity.ShelfCompDtl;
 import th.co.d1.digitallending.entity.ShelfProduct;
@@ -892,7 +891,7 @@ public class ProductV1Controller {
                         .put("prodCode", ValidUtils.null2NoData(vcs.getProdUuid().getProdCode()))
                         .put("prodName", ValidUtils.null2NoData(vcs.getProdUuid().getProdName()))
                         .put("verProd", ValidUtils.null2NoData((vcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(vcs.getVerProd()))))
-                        .put("statusCode", StatusUtils.getStatusByCode(subState, String.valueOf(vcs.getStatus())).getStatusCode())
+                        .put("statusCode", StatusUtils.getStatusByCode(subState,String.valueOf(vcs.getStatus())).getStatusCode())
                         .put("statusName", StatusUtils.getStatusByCode(subState, String.valueOf(vcs.getStatus())).getStatusNameEn());
 
                 for (ShelfProductDtl spDtl : vcs.getShelfProductDtlList()) {
@@ -1547,23 +1546,7 @@ public class ProductV1Controller {
             String startUpdateDate = json.has("startUpdateDate") ? json.getString("startUpdateDate") : null;
             String endUpdateDate = json.has("endUpdateDate") ? json.getString("endUpdateDate") : null;
             String updateBy = json.has("updateBy") ? json.getString("updateBy") : null;
-            int page = json.has("page") ? json.getInt("page") : 0;;
-            int offSet = (page - 1) * 10;
-//            returnVal.put("data", new ShelfProductDao().searchProduct(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy));
-
-//            JSONObject objReturn = new JSONObject();
-            List<JSONObject> objReturn = new ShelfProductDao().searchProduct(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy,offSet,page);
-
-            int total = new ShelfProductDao().searchProductCount(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy);
-
-            JSONObject option = new JSONObject();
-            option.put("page", page);
-            option.put("next", page + 1);
-            option.put("prev", page - 1);
-            option.put("total", (int) Math.ceil(total / 10));
-            returnVal.put("option", option);
-            returnVal.put("data", objReturn);
-
+            returnVal.put("data", new ShelfProductDao().searchProduct(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy));
         } catch (JSONException | NullPointerException | HibernateException | SQLException e) {
             logger.info(e.getMessage());
             e.printStackTrace();
@@ -1661,14 +1644,14 @@ public class ProductV1Controller {
                 prod.put("status", vcs.getStatus());
                 prod.put("statusName", st.getStatusNameTh() == null ? "" : st.getStatusNameTh());
                 prod.put("statusNameEn", st.getStatusNameEn() == null ? "" : st.getStatusNameEn());
-                if (shelfTmp != null) {
+                if(shelfTmp != null){
                     prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
                     prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
-                } else {
+                }else{
                     prod.put("template", "");
                     prod.put("templateName", "");
                 }
-
+                
                 prod.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
                 prod.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
                 prod.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
@@ -2049,7 +2032,7 @@ public class ProductV1Controller {
 
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
-
+    
     @Log_decorator
     @RequestMapping(value = "infobycode/{prodCode}", method = RequestMethod.GET)
     @ResponseBody
@@ -2073,10 +2056,10 @@ public class ProductV1Controller {
                     prod.setUuid(ValidUtils.null2NoData(data.getUuid()));
                     prodUuid = ValidUtils.null2NoData(data.getUuid());
                 }
-                System.out.println("prodUuid  : " + prodUuid);
+                System.out.println("prodUuid  : "+prodUuid);
                 returnVal.put("datas", ProductUtils.infoProductsByUuidStatus(subState, prodUuid, status));
             }
-
+            
         } catch (JSONException | NullPointerException | HibernateException | ParseException e) {
             log.info("" + e);
             logger.info(e.getMessage());

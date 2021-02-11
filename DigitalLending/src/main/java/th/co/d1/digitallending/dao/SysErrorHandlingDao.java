@@ -211,11 +211,12 @@ public class SysErrorHandlingDao {
                 if (!psOperLog.isClosed()) {
                     psOperLog.close();
                 }
-                SysErrorHandling sysErr = getSysErrorHandlingByTxnNo(dbEnv, txnId);
+                SysErrorHandling sysErr = getSysErrorHandlingByTxnNo(dbEnv, sysOperLog.getTxnNo());
                 System.out.println("getSysErrorHandlingByTxnNo: "+sysErr);
                 if (ret.has("detail")) {
                     JSONObject obj = new JSONObject();
                     obj.put("txnsId", ValidUtils.null2NoData(sysOperLog.getTxnNo()))
+                            .put("trnId", ValidUtils.null2NoData(sysOperLog.getTrnId()))
                             .put("refNo", sysOperLog.getRefNo())
                             .put("txnsDateTime", DateUtils.getDisplayEnDate(sysOperLog.getCreateAt(), "dd/MM/yyyy HH:mm"))
                             .put("installmentDate", stepData.has("paymentDate") ? stepData.getString("paymentDate") : "")
@@ -307,6 +308,7 @@ public class SysErrorHandlingDao {
                 } else {
                     JSONObject obj = new JSONObject();
                     obj.put("txnsId", ValidUtils.null2NoData(sysOperLog.getTxnNo()))
+                            .put("trnId", ValidUtils.null2NoData(sysOperLog.getTrnId()))
                             .put("refNo", sysOperLog.getRefNo())
                             .put("txnsDateTime", DateUtils.getDisplayEnDate(sysOperLog.getCreateAt(), "dd/MM/yyyy HH:mm"))
                             .put("installmentDate", stepData.has("paymentDate") ? stepData.getString("paymentDate") : "")
@@ -477,6 +479,8 @@ public class SysErrorHandlingDao {
         }
     }
 
+    
+    
     public SysErrorHandling getSysErrorHandlingByTxnNo(String dbEnv, String txnNo) {
         SysErrorHandling err = new SysErrorHandling();
         Transaction trans = null;
