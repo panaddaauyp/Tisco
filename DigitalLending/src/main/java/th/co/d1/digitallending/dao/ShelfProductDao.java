@@ -506,7 +506,7 @@ public class ShelfProductDao {
     }
 
     public List<JSONObject> searchProduct(String subState, String templateName, String productName, JSONArray status,
-            String startActiveDate, String endActiveDate, String startUpdateDate, String endUpdateDate, String updateBy)
+            String startActiveDate, String endActiveDate, String startUpdateDate, String endUpdateDate, String updateBy , int offSet ,int page)
             throws SQLException {
         List<JSONObject> ret = new ArrayList<>();
         PreparedStatement ps = null, psDtl = null;
@@ -587,6 +587,11 @@ public class ShelfProductDao {
             }
             searchProdCmd.append(" ORDER BY VCS.UPDATE_AT DESC");
 //            searchProdCmd.append(" ORDER BY SP.PROD_CODE, SP.PROD_NAME DESC");
+            if (page > 0) {
+                searchProdCmd.append(" LIMIT 10 OFFSET ? ");
+                params.add(offSet);
+            }
+            System.out.println("searchProdCmd : " +searchProdCmd);
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(searchProdCmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -734,6 +739,127 @@ public class ShelfProductDao {
 //        Utils.sortJSONObjectByKey(ret, "updateDate", false);
         return ret;
     }
+    
+    public int searchProductCount(String subState, String templateName, String productName, JSONArray status,
+            String startActiveDate, String endActiveDate, String startUpdateDate, String endUpdateDate, String updateBy)
+            throws SQLException {
+        List<JSONObject> ret = new ArrayList<>();
+        PreparedStatement ps = null, psDtl = null;
+        ResultSet rs = null, rsDtl = null;
+        int total = 0;
+        try (Session session = getSessionMaster(subState).openSession()) {
+            Integer statusActive = StatusUtils.getActive(subState).getStatusCode();
+            Integer statusWaitDelete = StatusUtils.getWaittoDelete(subState).getStatusCode();
+            Integer statusDelete = StatusUtils.getDelete(subState).getStatusCode();
+            Integer statusTerminate = StatusUtils.getTerminate(subState).getStatusCode();
+            List params = new ArrayList<>();
+            StringBuilder searchProdCmd = new StringBuilder();
+            searchProdCmd.append(
+                    "select count(VCS.uuid) AS total "
+                    + " FROM T_SHELF_PRODUCT_VCS VCS "
+                    + " INNER JOIN T_SHELF_PRODUCT SP ON VCS.PROD_UUID = SP.UUID "
+                    + " INNER JOIN T_SHELF_PRODUCT_DTL DTL ON VCS.UUID = DTL.TRN_UUID "
+                    + " INNER JOIN T_SHELF_TMP TMP ON VCS.TEM_UUID = TMP.UUID "
+                    + " INNER JOIN T_SHELF_THEME THEME ON VCS.THEME_UUID = THEME.UUID "
+                    + " INNER JOIN T_SYS_LOOKUP LK ON VCS.STATUS::text = LK.LOOKUP_CODE "
+                    + " WHERE VCS.COMP_UUID IS NULL " + " AND VCS.STATUS <> 215 ");
+            if (null != templateName && !templateName.isEmpty()) {
+                searchProdCmd
+                        .append(" AND VCS.TEM_UUID IN (SELECT UUID FROM T_SHELF_TMP WHERE LOWER(TMP_NAME) LIKE ?) ");
+                params.add("%" + templateName.toLowerCase() + "%");
+            }
+            if (null != productName && !productName.isEmpty()) {
+                searchProdCmd.append(
+                        " AND VCS.PROD_UUID IN (SELECT UUID FROM T_SHELF_PRODUCT WHERE LOWER(PROD_NAME) LIKE ?) ");
+                params.add("%" + productName.toLowerCase() + "%");
+            }
+            if (status.length() > 0) {
+                searchProdCmd.append(" AND VCS.STATUS IN (? ");
+                for (int i = 1; i < status.length(); i++) {
+                    params.add(status.getInt(i - 1));
+                    searchProdCmd.append(", ? ");
+                }
+                params.add(status.getInt(status.length() - 1));
+                searchProdCmd.append(") ");
+            }
+            if ((null != startActiveDate && !startActiveDate.isEmpty())
+                    && (null != endActiveDate && !endActiveDate.isEmpty())) {
+                searchProdCmd.append(
+                        " AND COALESCE(VCS.UPDATE_AT,VCS.CREATE_AT) BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(startActiveDate + " " + "00:00:00");
+                params.add(endActiveDate + " " + "23:59:59");
+            } else if ((null == startActiveDate || startActiveDate.isEmpty())
+                    && (null != endActiveDate && !endActiveDate.isEmpty())) {
+                searchProdCmd.append(
+                        " AND COALESCE(VCS.UPDATE_AT,VCS.CREATE_AT) <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(endActiveDate + " " + "23:59:59");
+            } else if ((null != startActiveDate && !startActiveDate.isEmpty())
+                    && (null == endActiveDate || endActiveDate.isEmpty())) {
+                searchProdCmd.append(
+                        " AND COALESCE(VCS.UPDATE_AT,VCS.CREATE_AT) >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
+                params.add(startActiveDate + " " + "00:00:00");
+            }
+            searchProdCmd.append(" AND DTL.LK_CODE = 'activeDate' ");
+            if ((null != startUpdateDate && !startUpdateDate.isEmpty())
+                    && (null != endUpdateDate && !endUpdateDate.isEmpty())) {
+                searchProdCmd
+                        .append(" AND DTL.LK_VALUE BETWEEN TO_DATE(?, 'DD/MM/YYYY') AND TO_TIMESTAMP(?, 'DD/MM/YYYY')");
+                params.add(startUpdateDate);
+                params.add(endUpdateDate);
+            } else if ((null == startUpdateDate || startUpdateDate.isEmpty())
+                    && (null != endUpdateDate && !endUpdateDate.isEmpty())) {
+                searchProdCmd.append(" AND DTL.LK_VALUE <= TO_DATE(?, 'DD/MM/YYYY')");
+                params.add(endUpdateDate);
+            } else if ((null != startUpdateDate && !startUpdateDate.isEmpty())
+                    && (null == endUpdateDate || endUpdateDate.isEmpty())) {
+                searchProdCmd.append(" AND DTL.LK_VALUE >= TO_DATE(?, 'DD/MM/YYYY')");
+                params.add(startUpdateDate);
+            }
+            if (null != updateBy && !updateBy.isEmpty()) {
+                searchProdCmd.append(" AND LOWER(COALESCE(VCS.UPDATE_BY,VCS.CREATE_BY))  LIKE ?");
+                params.add("%" + updateBy.toLowerCase() + "%");
+            }
+        
+//            searchProdCmd.append(" ORDER BY SP.PROD_CODE, SP.PROD_NAME DESC");
+           
+            System.out.println("searchProdCmd : " +searchProdCmd);
+            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(searchProdCmd.toString());
+            if (params.size() > 0) {
+                for (int i = 0; i < params.size(); i++) {
+                    if (params.get(i) instanceof String) {
+                        ps.setString(i + 1, (String) params.get(i));
+                    } else {
+                        ps.setInt(i + 1, (Integer) params.get(i));
+                    }
+                }
+            }
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                total = rs.getInt("total");
+            }
+              
+        } catch (HibernateException | NullPointerException e) {
+            logger.info(e.getMessage());
+            throw e;
+        } finally {
+            if (rsDtl != null && !rsDtl.isClosed()) {
+                rsDtl.close();
+            }
+            if (psDtl != null && !psDtl.isClosed()) {
+                psDtl.close();
+            }
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
+        }
+//        Utils.sortJSONObjectByKey(ret, "updateDate", false);
+        return total;
+    }
+
 
     public JSONArray listProductUse(String subState, String productCode) throws SQLException {
         JSONArray ret = new JSONArray();
