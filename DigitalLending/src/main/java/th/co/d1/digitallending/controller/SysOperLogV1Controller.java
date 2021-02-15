@@ -195,6 +195,8 @@ public class SysOperLogV1Controller {
                 sysLog.setAttr5(new UtilityDao().getCutOffProduct(subState, sysLog.getProductId(), ValidUtils.str2BigInteger(sysLog.getProductVersionId())));
                 sysLog.setAttr6(json.has("traceNo") ? json.getString("traceNo") : "");
                 sysLog.setAttr7(ValidUtils.str2Dec(json.has("minMax") ? json.getString("minMax") : "00.00").toString());
+                sysLog.setAttr9(json.has("data9") ? json.getString("data9") : "");
+                sysLog.setAttr10(json.has("data10") ? json.getString("data10") : "");
                 SysLog sl = null;
                 if (null != sysLog.getCaseId() && !"".equals(sysLog.getCaseId()) && null != state && "PRO1013".equalsIgnoreCase(state.getLookupCode())) {
                     sl = new SysLog();
