@@ -163,7 +163,9 @@ public class TemplateV1Controller {
                         .put("detailUuid", detail.getUuid())
                         .put("compCode", detail.getCompUuid().getCompCode())
                         .put("compName", detail.getCompUuid().getCompName())
-                        .put("enable", detail.getFlagEnable());
+                        .put("enable", detail.getFlagEnable())
+                        .put("createDate", detail.getCreateAt())
+                        .put("status", detail.getStatus());
 
                 if (detail.getCompUuid().getCompCode().equalsIgnoreCase("004")) {
                     if (shelfTmpVcs.getAttr1() != null && !shelfTmpVcs.getAttr1().isEmpty()) {
@@ -173,6 +175,8 @@ public class TemplateV1Controller {
                             JSONObject obj = attrArr.getJSONObject(aai);
 //                            if (detail.getCompUuid().getUuid().equalsIgnoreCase(obj.getString("compUuid"))) {
                             if (obj.has("termsNCondition")) {
+                                obj.put("createDate", shelfTmpVcs.getCreateAt());
+                                obj.put("status", shelfTmpVcs.getStatus());
 //                                obj.put("version", String.valueOf(shelfTmpVcs.getVersion()));
                                 eachDetail.put("data", obj);
                             }
@@ -187,6 +191,8 @@ public class TemplateV1Controller {
                             for (int aai = 0; aai < attrArr.length(); aai++) {
                                 JSONObject obj = attrArr.getJSONObject(aai);
                                 if (obj.has("termsNCondition")) {
+                                    obj.put("createDate", shelfTmpVcs.getCreateAt());
+                                    obj.put("status", shelfTmpVcs.getStatus());
 //                                    obj.put("version", String.valueOf(shelfTmpVcs.getVersion()));
                                     termCons.put(obj);
                                 }
@@ -202,6 +208,8 @@ public class TemplateV1Controller {
                             JSONObject obj = attrArr.getJSONObject(aai);
 //                            if (detail.getCompUuid().getUuid().equalsIgnoreCase(obj.getString("compUuid"))) {
                             if (obj.has("chkConsentList")) {
+                                obj.put("createDate", shelfTmpVcs.getCreateAt());
+                                obj.put("status", shelfTmpVcs.getStatus());
                                 eachDetail.put("data", obj);
                             }
                         }
