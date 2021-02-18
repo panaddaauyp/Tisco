@@ -1,0 +1,54 @@
+let body = {
+    "file_code": "02",
+    "sub_file_code": "02",
+    "control": "1",
+    "seq": "1",
+    "processing_date": "0",
+    "effective_date": "0",
+    "new_monthly_installment": "0.00",
+    "effective_installment_no": "0"
+}
+
+
+let file_code = body.file_code;
+let sub_file_code = body.sub_file_code;
+let control = body.control;
+let seq = body.seq;
+let processing_date = body.processing_date;
+let effective_date = body.effective_date;
+let new_monthly_installment = body.new_monthly_installment;
+let effective_installment_no = body.effective_installment_no;
+let new_req_body = 
+`{
+    "monthly_installs": [
+        {
+            "file_code": "${file_code}",
+            "sub_file_code": "${sub_file_code}",
+            "control": ${control},
+            "seq": ${seq},
+            "processing_date": ${processing_date},
+            "effective_date": ${effective_date},
+            "new_monthly_installment": ${new_monthly_installment},
+            "effective_installment_no": ${effective_installment_no}
+        }
+    ]
+}
+`
+
+console.log(new_req_body)
+VM1179:38 {
+    "monthly_installs": [
+        {
+            "file_code": "02",
+            "sub_file_code": "02",
+            "control": 1,
+            "seq": 1,
+            "processing_date": 0,
+            "effective_date": 0,
+            "new_monthly_installment": 0.00,
+            "effective_installment_no": 0
+        }
+    ]
+}
+
+Limit
