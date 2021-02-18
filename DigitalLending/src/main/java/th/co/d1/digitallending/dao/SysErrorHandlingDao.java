@@ -47,6 +47,7 @@ public class SysErrorHandlingDao {
             StringBuilder cmd = new StringBuilder();
             List params = new ArrayList<>();
             cmd.append("SELECT log.* ,LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC, COMP.COMP_NAME COMPONENTNAME  "
+                    + ",LOG9.attr9 data_attr9 ,LOG10.attr10 data_attr10 " 
                     + "FROM T_SYS_OPER_LOG LOG " 
                     + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID  " 
                     + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE " 
@@ -55,6 +56,8 @@ public class SysErrorHandlingDao {
                     + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID " 
                     + "LEFT JOIN T_SYS_ERROR_HANDLING ERR ON LOG.TXN_NO = ERR.TXN_NO " 
                     + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE  " 
+                    + "LEFT JOIN T_SYS_OPER_LOG LOG9 ON LOG.txn_no = LOG9.txn_no and  LOG9.state_code = 'b3c17ff7-c20e-4833-8a83-86f51a81020b' AND  LOG9.attr9 != '' AND LOG9.attr9 IS NOT NULL  " 
+                    + "LEFT JOIN T_SYS_OPER_LOG LOG10 ON LOG.txn_no = LOG10.txn_no and  LOG10.state_code = 'c3b5ce77-d348-43e7-9ae9-1fd5d5e9dac9' AND  LOG10.attr10 != '' AND LOG10.attr10 IS NOT NULL  " 
                     + "WHERE log.uuid IN " 
                     + "( select uuid from ( " 
                     + "select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP( " 
@@ -145,8 +148,8 @@ public class SysErrorHandlingDao {
                 sysOperLog.setAttr6(rs.getString("attr6"));
                 sysOperLog.setAttr7(rs.getString("attr7"));
                 sysOperLog.setAttr8(rs.getString("attr8"));
-                sysOperLog.setAttr9(rs.getString("attr9"));
-                sysOperLog.setAttr10(rs.getString("attr10"));
+                sysOperLog.setAttr9(rs.getString("data_attr9"));
+                sysOperLog.setAttr10(rs.getString("data_attr10"));
                 sysOperLog.setStatus(rs.getInt("status"));
                 sysOperLog.setCreateAt(rs.getTimestamp("create_at"));
                 sysOperLog.setCreateBy(rs.getString("create_by"));
@@ -227,8 +230,8 @@ public class SysErrorHandlingDao {
                             .put("installmentPerMonth", stepData.has("installmentPerMonth") ? stepData.getString("installmentPerMonth") : "")
                             .put("interestRate", stepData.has("interestRate") ? stepData.getString("interestRate") : "")
                             .put("paymentMethod", stepData.has("paymentMethod") ? stepData.getString("paymentMethod") : "")
-                            .put("status", rs.getString("STATUS_NAME"))
-                            .put("state", rs.getString("STATE_NAME"))
+                            .put("status", rs.getString("data_attr9"))
+                            .put("state", rs.getString("data_attr10"))
                             .put("procError", ValidUtils.null2NoData(sysOperLog.getAttr2()))
                             .put("procErrNameTh", ValidUtils.null2NoData(errNameTh))
                             .put("procErrNameEn", ValidUtils.null2NoData(errNameEn))
@@ -238,6 +241,8 @@ public class SysErrorHandlingDao {
                             .put("agreementDate", ValidUtils.null2NoData(sysOperLog.getAttr3()))
                             .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
                             .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
+                            .put("attr9", rs.getString("STATE_NAME"))
+                            .put("attr10", rs.getString("STATE_NAME"))
                             .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? rs.getString("COMPONENTNAME") : "")
                             .put("erruuid", ValidUtils.null2NoData(sysErr.getUuid() != null ? sysErr.getUuid() : ""))
                             .put("errprodcode", ValidUtils.null2NoData(sysErr.getProdCode() != null ? sysErr.getProdCode() : ""))
@@ -330,6 +335,8 @@ public class SysErrorHandlingDao {
                             .put("agreementDate", ValidUtils.null2NoData(sysOperLog.getAttr3()))
                             .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
                             .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
+                            .put("status", rs.getString("data_attr9"))
+                            .put("state", rs.getString("data_attr10"))
                             .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? rs.getString("COMPONENTNAME") : "")
                             .put("erruuid", ValidUtils.null2NoData(sysErr.getUuid() != null ? sysErr.getUuid() : ""))
                             .put("errprodcode", ValidUtils.null2NoData(sysErr.getProdCode() != null ? sysErr.getProdCode() : ""))
