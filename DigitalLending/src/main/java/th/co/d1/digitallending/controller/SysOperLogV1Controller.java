@@ -193,10 +193,8 @@ public class SysOperLogV1Controller {
                 sysLog.setPaymentMethod(json.has("paymentmethod") ? json.getString("paymentmethod") : "");
                 sysLog.setAttr3(json.has("paymentdate") ? json.getString("paymentdate") : "");//paymentdate
                 sysLog.setAttr5(new UtilityDao().getCutOffProduct(subState, sysLog.getProductId(), ValidUtils.str2BigInteger(sysLog.getProductVersionId())));
-                sysLog.setAttr6(json.has("traceNo") ? json.getString("traceNo") : "");
-                sysLog.setAttr7(ValidUtils.str2Dec(json.has("minMax") ? json.getString("minMax") : "00.00").toString());
-                sysLog.setAttr9(json.has("atrr9") ? json.getString("atrr9") : "");
-                sysLog.setAttr10(json.has("atrr10") ? json.getString("atrr10") : "");
+                sysLog.setAttr6(json.has("trace_no") ? json.getString("trace_no") : "");
+                sysLog.setAttr7(ValidUtils.str2Dec(json.has("min_max") ? json.getString("min_max") : "00.00").toString());
                 SysLog sl = null;
                 if (null != sysLog.getCaseId() && !"".equals(sysLog.getCaseId()) && null != state && "PRO1013".equalsIgnoreCase(state.getLookupCode())) {
                     sl = new SysLog();

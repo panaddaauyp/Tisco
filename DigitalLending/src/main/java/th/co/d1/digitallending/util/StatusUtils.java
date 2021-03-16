@@ -332,14 +332,8 @@ public class StatusUtils {
 
     public static String getErrorMessageByCode(String dbEnv, String lookupCode) {
         try {
-            String message = null;
             Memlookup memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, lookupCode);
-            if (!memLookup.getLookupcode().isEmpty() || !memLookup.getLookupnameen().isEmpty()){
-                message = memLookup.getLookupcode() + " : " + memLookup.getLookupnameen();
-            } else {
-                message = "Not Data LookupCode and LookupName";
-            }
-            return message;
+            return memLookup.getLookupnameen();
         } catch (NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
             //e.printStackTrace();

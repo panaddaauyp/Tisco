@@ -480,25 +480,4 @@ public class ShelfProductVcsDao {
         }
         return shelfProductVcsList;
     }
-    
-    public List<ShelfProductVcs> getListProductVcsListByStatus(String dbEnv, String productUUID, Integer[] status) {
-        List<ShelfProductVcs> shelfProductVcsList = new ArrayList<>();
-        Transaction trans = null;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            List<Integer> refStatus = Arrays.asList(status);
-            trans = session.beginTransaction();
-            Criteria criteria = session.createCriteria(ShelfProductVcs.class);
-            criteria.add(Restrictions.eq("prodUuid.uuid", productUUID));
-            criteria.add(Restrictions.in("status", refStatus));
-            shelfProductVcsList = criteria.list();
-            trans.commit();
-        } catch (HibernateException | NullPointerException e) {
-            if (trans != null) {
-                trans.rollback();
-            }
-            logger.info(e.getMessage());
-            throw e;
-        }
-        return shelfProductVcsList;
-    }
 }

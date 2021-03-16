@@ -98,22 +98,7 @@ public class ReportSysOperLogV1Controller {
                 Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
                 String state = json.has("state") ? json.getString("state") : "";
                 String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-
-                int page = json.getInt("page");
-            
-                int offSet = (page - 1) * 10;
-                JSONObject objReturn = new JSONObject();
-
-                objReturn = new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId, offSet, page);
-                int total = new SysOperLogDao().getTransactionReportCount(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId);
-                JSONObject option = new JSONObject();
-                option.put("page", page);
-                option.put("next", page + 1);
-                option.put("prev", page - 1);
-                option.put("total",(int) Math.ceil(total / 10));
-                returnVal.put("option", option);
-
-                returnVal.put("datas", objReturn);
+                returnVal.put("datas", new SysOperLogDao().getTransactionReport(subState, prodCode, txnId, refNo, ucId, paymentMethod, startDate, endDate, startTime, endTime, status, state, refTxnId));
             }
         } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
@@ -133,6 +118,7 @@ public class ReportSysOperLogV1Controller {
         log.info("POST : /shelf/report/v1/inquiry/search");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
+//            JSONArray jsonArr = new JSONArray();
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
@@ -143,6 +129,10 @@ public class ReportSysOperLogV1Controller {
                 String refNo = (json.has("refNo") ? json.getString("refNo") : "");
                 String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
                 String txnId = (json.has("txnId") ? json.getString("txnId") : "");
+//                Date startDate = ValidUtils.str2Date(json.has("startTxnDate") ? json.getString("startTxnDate") : "");   //startTxnTime
+//                Date endTxnDate = ValidUtils.str2Date(json.has("endTxnDate") ? json.getString("endTxnDate") : "");      //endTxnTime
+//                Date startPayDate = ValidUtils.str2Date(json.has("startPayDate") ? json.getString("startPayDate") : "");
+//                Date endPayDate = ValidUtils.str2Date(json.has("endPayDate") ? json.getString("endPayDate") : "");
                 Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
                 String state = (json.has("state") ? json.getString("state") : "");
                 String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";    //create_at
@@ -152,6 +142,10 @@ public class ReportSysOperLogV1Controller {
                 String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";    //create_at
                 String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
                 String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
+                //                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");                 //attr1
+                //                Date startDate = ValidUtils.str2Date(json.has("startDate") ? json.getString("startDate") : "");    //create_at
+                //                Date endDate = ValidUtils.str2Date(json.has("endDate") ? json.getString("endDate") : "");
+
                 returnVal.put("datas", new SysOperLogDao().getInquiryTransaction(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
             }
         } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
@@ -201,7 +195,7 @@ public class ReportSysOperLogV1Controller {
             JSONObject datas = new JSONObject(reqBody);
             if (datas.has("data")) {
                 JSONObject json = datas.getJSONObject("data");
-                String compCode = (json.has("compCode") ? json.getString("compCode") : "");
+                String compName = (json.has("compName") ? json.getString("compName") : "");
                 String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
                 String ucid = (json.has("ucid") ? json.getString("ucid") : ""); //attr1
                 String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
@@ -221,72 +215,13 @@ public class ReportSysOperLogV1Controller {
                 String minAmount = (json.has("minAmount") ? json.getString("minAmount") : "");
                 String maxAmount = (json.has("maxAmount") ? json.getString("maxAmount") : "");
                 Integer prospect = StatusUtils.getProspect(subState).getStatusCode();
-
-                int page = json.getInt("page");
-                int offSet = (page - 1) * 10;
-                System.out.println("offSet : "+offSet);
-                JSONObject objReturn = new JSONObject();
-                objReturn = new SysOperLogDao().getTransferTransaction(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
-                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect ,offSet,page);
-
-                int total = new SysOperLogDao().getTransferTransactionCount(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
-                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect);
-
-                JSONObject option = new JSONObject();
-                option.put("page", page);
-                option.put("next", page + 1);
-                option.put("prev", page - 1);
-                option.put("total",(int) Math.ceil(total / 10));
-                returnVal.put("option", option);
-
-                returnVal.put("datas", objReturn);
-
-//                returnVal.put("datas", new SysOperLogDao().getTransferTransaction(subState, compCode, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
-//                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect));
+                returnVal.put("datas", new SysOperLogDao().getTransferTransaction(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime,
+                        status, state, paymentDateStart, paymentDateEnd, refTxnId, traceNo, minAmount, maxAmount, prospect));
             }
         } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
             logger.info(e.getMessage());
             log.error("" + e);
 //            e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/history/search", method = POST)
-    @ResponseBody
-    public ResponseEntity<?> getListHistoryPreview(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
-        logger.info("POST : /shelf/report/v1/history/search");
-        log.info("POST : /shelf/report/v1/history/search");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
-        try {
-            JSONObject datas = new JSONObject(reqBody);
-            if (datas.has("data")) {
-                JSONObject json = datas.getJSONObject("data");
-                String compName = (json.has("compName") ? json.getString("compName") : "");
-                String groupProduct = (json.has("groupProduct") ? json.getString("groupProduct") : "");
-                String ucid = (json.has("ucid") ? json.getString("ucid") : ""); //attr1
-                String prodCode = (json.has("prodCode") ? json.getString("prodCode") : "");
-                String refNo = (json.has("refNo") ? json.getString("refNo") : "");
-                String paymentMethod = (json.has("paymentMethod") ? json.getString("paymentMethod") : "");
-                String txnId = (json.has("txnId") ? json.getString("txnId") : "");
-                Integer status = json.has("status") && !json.getString("status").isEmpty() ? Integer.parseInt(json.getString("status")) : null;
-                String state = (json.has("state") ? json.getString("state") : "");
-                String txnDateStart = json.has("txnDateStart") ? json.getString("txnDateStart") : "";    //create_at
-                String txnDateEnd = json.has("txnDateEnd") ? json.getString("txnDateEnd") : "";
-                String txnStartTime = json.has("txnStartTime") ? json.getString("txnStartTime") : "";    //create_at
-                String txnEndTime = json.has("txnEndTime") ? json.getString("txnEndTime") : "";
-                String paymentDateStart = json.has("paymentDateStart") ? json.getString("paymentDateStart") : "";    //create_at
-                String paymentDateEnd = json.has("paymentDateEnd") ? json.getString("paymentDateEnd") : "";
-                String refTxnId = (json.has("refTxnId") ? json.getString("refTxnId") : "");
-                returnVal.put("datas", new SysOperLogDao().getDataHistory(subState, compName, groupProduct, ucid, prodCode, refNo, paymentMethod, txnId, txnDateStart, txnStartTime, txnDateEnd, txnEndTime, status, state, paymentDateStart, paymentDateEnd, refTxnId));
-            }
-        } catch (JSONException | SQLException | UnsupportedEncodingException | ParseException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
             returnVal.put("status", 500)
                     .put("description", "" + e);
         }

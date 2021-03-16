@@ -9,7 +9,6 @@ import com.tfglog.LogSingleton;
 import com.tfglog.Log_decorator;
 import com.tfglog.TfgLogger;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
@@ -25,8 +24,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
+import static th.co.d1.digitallending.controller.ShefRoleV1Controller.log;
+import th.co.d1.digitallending.dao.ShelfRoleDao;
 import th.co.d1.digitallending.dao.ShelfRoleFuncDao;
 import th.co.d1.digitallending.dao.ShelfRoleMenuDao;
 import th.co.d1.digitallending.entity.ShelfMenu;
@@ -53,14 +54,13 @@ public class ShelfRoleMenuFunctionV1Controller {
 
     final static Logger logger = Logger.getLogger(ShelfRoleMenuFunctionV1Controller.class.getName());
     final static TfgLogger log = LogSingleton.getTfgLogger();
-    Date sysdate = new Date();
 
     @Log_decorator
-    @RequestMapping(value = "edit", method = POST, headers = "Accept=application/json")
+    @RequestMapping(value = "save", method = RequestMethod.POST, headers = "Accept=application/json")
     @ResponseBody
-    public ResponseEntity<?> editMenu(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
-        logger.info("POST : /shelf/func/v1/edit");
-        log.info("POST : /shelf/func/v1/edit");
+    public ResponseEntity<?> saveMenu(HttpSession session, HttpServletResponse response, HttpServletRequest request, @RequestBody String reqBody, @RequestHeader(value = "sub_state", required = false) String subState) {
+        logger.info("POST : /shelf/func/v1/save");
+        log.info("POST : /shelf/func/v1/save");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("data", new JSONObject());
         try {
             JSONObject datas = new JSONObject(reqBody);
@@ -69,8 +69,8 @@ public class ShelfRoleMenuFunctionV1Controller {
                 String username = objUser.has("username") ? objUser.getString("username") : "";
                 if (!"".equals(username)) {
                     JSONArray arr = datas.getJSONArray("data");
-                    ShelfRoleMenuDao daoRM = new ShelfRoleMenuDao();
-                    ShelfRoleFuncDao daoRF = new ShelfRoleFuncDao();
+                    List<ShelfRoleMenu> listRoleMenu = new ArrayList<>();
+                    ShelfRoleMenuDao dao = new ShelfRoleMenuDao();
                     for (int i = 0; i < arr.length(); i++) {
                         JSONObject objData = arr.getJSONObject(i);
                         String roleMenuId = objData.has("role_menu_id") ? objData.getString("role_menu_id") : "";
@@ -83,87 +83,59 @@ public class ShelfRoleMenuFunctionV1Controller {
                         String preview = objData.has("preview") ? objData.getString("preview") : "N";
                         String export = objData.has("export") ? objData.getString("export") : "N";
                         String approve = objData.has("approve") ? objData.getString("approve") : "N";
-                        String terminate = objData.has("terminate") ? objData.getString("terminate") : "N";
-                        String pause = objData.has("pause") ? objData.getString("pause") : "N";
-                        String start = objData.has("start") ? objData.getString("start") : "N";
-                        String statusApprove = objData.has("status_approve") ? objData.getString("status_approve") : "";
                         Integer status = objData.has("status") ? StatusUtils.getStatusByCode(subState, objData.getString("status")).getStatusCode() : StatusUtils.getActive(subState).getStatusCode();
-
                         ShelfRoleMenu roleMenu = new ShelfRoleMenu();
-                        if (roleMenuId.equals("")) {
+                        if (!roleMenuId.isEmpty()) {
+                            roleMenu = dao.getShelfRoleMenu(subState, objData.getString("uuid"));
+                            if (null == roleMenu || null == roleMenu.getUuid()) {
                                 roleMenu = new ShelfRoleMenu();
                                 roleMenu.setUuid(getUUID());
-                                roleMenu.setCreateAt(null);
-                        } else {
-                            roleMenu = daoRM.getShelfRoleMenu(subState, roleMenuId);
-                            if (roleMenu.getUuid() != null) {
-                                roleMenu.setUuid(roleMenu.getUuid());
-                                roleMenu.setUpdateBy(username);
                             }
+                        } else {
+                            roleMenu.setUuid(getUUID());
                         }
+                        List<ShelfRoleFunc> dtl = new ArrayList<>();
                         roleMenu.setRoleUuid(new ShelfRole(roleId));
                         roleMenu.setMenuUuid(new ShelfMenu(menuId));
-                        roleMenu.setAttr9(statusApprove);
-                        roleMenu.setAttr10(statusApprove);
-                        roleMenu.setStatus(ValidUtils.obj2Integer(statusApprove));
-                        sysdate = new Date();
-                        if (roleMenu.getCreateAt() == null || roleMenu.getCreateAt().equals("")) {
-                            roleMenu.setCreateAt(sysdate);
-                            roleMenu.setCreateBy(username);
-                        }
-                        if (roleMenu.getUpdateBy() != null || roleMenu.getUpdateBy() != "") {
-                            roleMenu.setUpdateAt(sysdate);
-                        }
-                        if (roleMenu.getCreateBy() == null) {
-                            roleMenu.setCreateBy(username);
-                        }
-                        roleMenu = daoRM.saveShelfRoleMenu(subState, roleMenu, username);
-                        if (roleMenu.getUuid() != null) {
-                            ShelfRoleFunc roleFunc = new ShelfRoleFunc();
-                            if (roleFuncId.equals("")) {
-                                roleFunc = new ShelfRoleFunc();
-                                roleFunc.setUuid(getUUID());
-                                roleFunc.setCreateAt(null);
-                            } else {
-                                roleFunc = daoRF.getShelfRoleFunc(subState, roleFuncId);
-                                if (roleFunc.getUuid() != null) {
-                                    roleFunc.setUuid(roleFunc.getUuid());
-                                    roleFunc.setUpdateBy(username);
+                        roleMenu.setStatus(status);
+                        ShelfRoleFunc roleFunc = new ShelfRoleFunc();
+                        if (!roleFuncId.isEmpty()) {
+                            ShelfRoleFuncDao funcDao = new ShelfRoleFuncDao();
+                            roleFunc = funcDao.getShelfRoleFunc(subState, roleFuncId);
+                            if (null == roleFunc || null == roleFunc.getUuid()) {
+                                if (!roleMenuId.isEmpty()) {
+                                    roleFunc = funcDao.getShelfRoleFuncByRoleMenuId(subState, roleMenuId);
+                                    if (null == roleFunc || null == roleFunc.getUuid()) {
+                                        roleFunc = new ShelfRoleFunc();
+                                        roleFunc.setUuid(getUUID());
+                                    }
+                                } else {
+                                    roleFunc = new ShelfRoleFunc();
+                                    roleFunc.setUuid(getUUID());
                                 }
                             }
-                            roleFunc.setRoleMenuId(roleMenu);
-                            roleFunc.setFCreate(create.charAt(0));
-                            roleFunc.setFEdit(edit.charAt(0));
-                            roleFunc.setFDelete(delete.charAt(0));
-                            roleFunc.setFPreview(preview.charAt(0));
-                            roleFunc.setFExport(export.charAt(0));
-                            roleFunc.setFApprove(approve.charAt(0));
-                            roleFunc.setfTerminate(terminate.charAt(0));
-                            roleFunc.setfPause(pause.charAt(0));
-                            roleFunc.setfStart(start.charAt(0));
-                            roleFunc.setStatus(status);
-                            sysdate = new Date();
-                            if (roleFunc.getCreateAt() == null) {
-                                roleFunc.setCreateAt(sysdate);
-                                roleFunc.setCreateBy(username);
-                            }
-                            if (roleFunc.getUpdateBy() != null) {
-                                roleFunc.setUpdateAt(sysdate);
-                            }
-                            roleFunc = daoRF.saveShelfRoleFunction(subState, roleFunc, username);
-
-                            if (roleFunc.getUuid() != null) {
-                                returnVal.put("status", 200).put("description", "Sucsess RoleMenuFunc1");
-                            } else {
-                                returnVal.put("status", 500).put("description", "Error RoleMenuFunc");
-                            }
-                        } else {
-                            returnVal.put("status", 500).put("description", "Error RoleMenu");
                         }
+                        roleFunc.setFCreate(create.charAt(0));
+                        roleFunc.setFEdit(edit.charAt(0));
+                        roleFunc.setFDelete(delete.charAt(0));
+                        roleFunc.setFPreview(preview.charAt(0));
+                        roleFunc.setFExport(export.charAt(0));
+                        roleFunc.setFApprove(approve.charAt(0));
+                        roleFunc.setStatus(StatusUtils.getActive(subState).getStatusCode());
+                        dtl.add(roleFunc);
+                        roleMenu.setShelfRoleFuncList(dtl);
+                        listRoleMenu.add(roleMenu);
+                    }
+                    JSONObject resp = dao.saveShelfShelfRoleMenuFunction(subState, listRoleMenu, username);
+                    if (resp.getBoolean("status")) {
+                        
+                    } else {
+                        returnVal.put("status", 500)
+                                .put("description", resp.getString("description"));
                     }
                 } else {
                     returnVal.put("status", 500)
-                              .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
+                            .put("description", StatusUtils.getErrorMessageByCode(subState, "SHELF0029"));
                 }
             }
         } catch (JSONException | NullPointerException | HibernateException e) {
@@ -171,14 +143,14 @@ public class ShelfRoleMenuFunctionV1Controller {
             log.error("" + e);
             //e.printStackTrace();
             returnVal.put("status", 500)
-                      .put("description", "" + e);
+                    .put("description", "" + e);
 
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 
     @Log_decorator
-    @RequestMapping(value = "list", method = POST)
+    @RequestMapping(value = "list", method = RequestMethod.POST)
     @ResponseBody
     public ResponseEntity<?> getRoleList(HttpSession session, HttpServletResponse response, @RequestBody String reqBody, HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
         log.info("GET : /shelf/func/v1/list");
@@ -209,22 +181,16 @@ public class ShelfRoleMenuFunctionV1Controller {
                                 .put("delete", "")
                                 .put("preview", "")
                                 .put("export", "")
-                                .put("approve", "")
-                                .put("terminate", "")
-                                .put("pause", "")
-                                .put("start", "");
+                                .put("approve", "");
                         if (null != role.getShelfRoleFuncList() && role.getShelfRoleFuncList().size() > 0) {
                             ShelfRoleFunc func = role.getShelfRoleFuncList().get(0);
                             obj.put("role_func_id", ValidUtils.null2NoData(func.getUuid()))
-                                .put("create", ValidUtils.null2Separator(func.getFCreate(), "N"))
-                                .put("edit", ValidUtils.null2Separator(func.getFEdit(), "N"))
-                                .put("delete", ValidUtils.null2Separator(func.getFDelete(), "N"))
-                                .put("preview", ValidUtils.null2Separator(func.getFPreview(), "N"))
-                                .put("export", ValidUtils.null2Separator(func.getFExport(), "N"))
-                                .put("approve", ValidUtils.null2Separator(func.getFApprove(), "N"))
-                                .put("terminate", ValidUtils.null2Separator(func.getfTerminate(), "N"))
-                                .put("pause", ValidUtils.null2Separator(func.getfPause(), "N"))
-                                .put("start", ValidUtils.null2Separator(func.getfStart(), "N"));
+                                    .put("create", ValidUtils.null2Separator(func.getFCreate(), "N"))
+                                    .put("edit", ValidUtils.null2Separator(func.getFEdit(), "N"))
+                                    .put("delete", ValidUtils.null2Separator(func.getFDelete(), "N"))
+                                    .put("preview", ValidUtils.null2Separator(func.getFPreview(), "N"))
+                                    .put("export", ValidUtils.null2Separator(func.getFExport(), "N"))
+                                    .put("approve", ValidUtils.null2Separator(func.getFApprove(), "N"));
                         }
                         arr.add(obj);
                     }
@@ -236,7 +202,7 @@ public class ShelfRoleMenuFunctionV1Controller {
             logger.info(e.getMessage());
             //e.printStackTrace();
             returnVal.put("status", 500)
-                      .put("description", "" + e);
+                    .put("description", "" + e);
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }

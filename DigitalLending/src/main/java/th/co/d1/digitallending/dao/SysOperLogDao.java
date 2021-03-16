@@ -654,7 +654,7 @@ public class SysOperLogDao {
         return ret;
     }
 
-    public JSONObject getTransactionReport(String dbEnv, String prodCode, String txnId, String refNo, String ucId, String paymentMethod, String startDate, String endDate, String startTime, String endTime, Integer status, String state, String refTxnId, int offSet ,int page) throws SQLException, UnsupportedEncodingException, ParseException {
+    public JSONObject getTransactionReport(String dbEnv, String prodCode, String txnId, String refNo, String ucId, String paymentMethod, String startDate, String endDate, String startTime, String endTime, Integer status, String state, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
         JSONObject ret = new JSONObject();
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, stepDataRs = null;
@@ -761,11 +761,6 @@ public class SysOperLogDao {
                 params.add(state);
             }
             transactionCmd.append(" ORDER BY LOG.CREATE_AT ASC");
-            if (page > 0) {
-                transactionCmd.append(" LIMIT 10 OFFSET ? ");
-                params.add(offSet);
-            }
-
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transactionCmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -1019,156 +1014,12 @@ public class SysOperLogDao {
         return ret;
     }
 
-    public int getTransactionReportCount(String dbEnv, String prodCode, String txnId, String refNo, String ucId, String paymentMethod, String startDate, String endDate, String startTime, String endTime, Integer status, String state, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
-        JSONObject ret = new JSONObject();
-        PreparedStatement ps = null, psOperLog = null;
-        ResultSet rs = null, stepDataRs = null;
-        String cutOff = "";
-        int total = 0;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            StringBuilder transactionCmd = new StringBuilder();
-            List params = new ArrayList<>();
-            transactionCmd.append("select count(LOG.uuid) AS total "
-                    + "from t_sys_oper_log LOG "
-                    + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE "
-                    + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID "
-                    + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
-                    + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
-                    + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
-                    + "WHERE log.uuid IN "
-                    + "( "
-                    + "         select uuid from ("
-                    + "   select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP(log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "
-                    + "   from t_sys_oper_log log "
-                    + "        )A "
-                    + "        where A.ROW_NO = 1 "
-                    //                    + "        select uuid from ( "
-                    //                    + "                SELECT uuid, row_number() over (partition by txn_no order by CREATE_AT desc) as ROW_NO "
-                    //                    + "                        , MAX(CREATE_AT) OVER (PARTITION BY TXN_NO) MAX_DATE "
-                    //                    + "                        , MAX(PAYMENT_DATE) OVER (PARTITION BY TXN_NO) PAY_DATE "
-                    //                    + "                        , MAX(TO_TIMESTAMP(ATTR4, 'yyyy-MM-dd HH24:MI:SS')) OVER (PARTITION BY TXN_NO) UPDATE_DATE "
-                    //                    + "            FROM t_sys_oper_log S "
-                    //                    + "        )A  "
-                    //                    + "        where A.ROW_NO = 1 "
-                    + " ) ");
-            if (null != prodCode && !prodCode.isEmpty()) {
-                transactionCmd.append(" AND PRODUCT_CODE = ? ");
-                params.add(prodCode);
-            }
-            if (null != txnId && !txnId.isEmpty()) {
-                transactionCmd.append(" AND LOWER(LOG.TXN_NO) LIKE ? ");
-                params.add("%" + txnId.toLowerCase() + "%");
-            }
-            if (null != refNo && !refNo.isEmpty()) {
-                transactionCmd.append(" AND LOG.REF_NO LIKE ? ");
-                params.add("%" + refNo + "%");
-            }
-            if (null != ucId && !ucId.isEmpty()) {
-//                transactionCmd.append(" AND LOG.ATTR1 = ? ");
-                String id[] = ucId.replace("(", "").replace(")", "").replace("'", "").split(",");
-                StringBuilder subCmd = new StringBuilder();
-                subCmd.append(" AND LOG.ATTR1 in ( ? ");
-
-                for (int i = 1; i < id.length; i++) {
-                    subCmd.append(", ? ");
-                }
-                subCmd.append(") ");
-                for (int i = 0; i < id.length; i++) {
-                    params.add(id[i]);
-                }
-                transactionCmd.append(subCmd);
-            }
-            if (null != refTxnId && !refTxnId.isEmpty()) {
-//                inquiryCmd.append(" AND LOG.ATTR1 = ? ");
-                String id[] = refTxnId.replace("(", "").replace(")", "").replace("'", "").split(",");
-//                transactionCmd.append(" AND LOG.ATTR1 = ? ");
-                StringBuilder subCmd = new StringBuilder();
-                subCmd.append(" AND LOWER(LOG.TXN_NO) in ( ? ");
-                for (int i = 1; i < id.length; i++) {
-                    subCmd.append(", ? ");
-                }
-                subCmd.append(") ");
-                for (int i = 0; i < id.length; i++) {
-                    params.add(id[i].toLowerCase());
-                }
-                transactionCmd.append(subCmd);
-            }
-            if (null != paymentMethod && !paymentMethod.isEmpty()) {
-                transactionCmd.append(" AND LOG.PAYMENT_METHOD = ? ");
-                params.add(paymentMethod);
-            }
-            if (null != startTime && !startTime.isEmpty()) {
-                startTime += ":00";
-            } else {
-                startTime = "00:00:00";
-            }
-            if (null != endTime && !endTime.isEmpty()) {
-                endTime += ":59";
-            } else {
-                endTime = "23:59:59";
-            }
-            if ((null != startDate && !startDate.isEmpty()) && (null != endDate && !endDate.isEmpty())) {
-                transactionCmd.append(" AND LOG.CREATE_AT BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(startDate + " " + startTime);
-                params.add(endDate + " " + endTime);
-            } else if ((null == startDate || startDate.isEmpty()) && (null != endDate && !endDate.isEmpty())) {
-                transactionCmd.append(" AND LOG.CREATE_AT <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(endDate + " " + endTime);
-            } else if ((null != startDate && !startDate.isEmpty()) && (null == endDate || endDate.isEmpty())) {
-                transactionCmd.append(" AND LOG.CREATE_AT >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(startDate + " " + startTime);
-            }
-            if (null != status) {
-                transactionCmd.append(" AND LOG.STATUS = ? ");
-                params.add(status);
-            }
-            if (null != state && !state.isEmpty()) {
-                transactionCmd.append(" AND LK.LOOKUP_CODE = ? ");
-                params.add(state);
-            }
-//            transactionCmd.append(" ORDER BY LOG.CREATE_AT ASC");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transactionCmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            rs = ps.executeQuery();
-
-            while (rs.next()) {
-                total = rs.getInt("total");
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (stepDataRs != null && !stepDataRs.isClosed()) {
-                stepDataRs.close();
-            }
-            if (psOperLog != null && !psOperLog.isClosed()) {
-                psOperLog.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
-        }
-        return total;
-    }
-
     public JSONObject getInquiryTransaction(String dbEnv, String company, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart, String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
         JSONObject ret = new JSONObject();
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, stepDataRs = null;
         String cutOff = "";
         try (Session session = getSessionMaster(dbEnv).openSession()) {
-            logger.info("Report Inquiry To getInquiryTransaction DAO");
             StringBuilder inquiryCmd = new StringBuilder();
             List params = new ArrayList<>();
             inquiryCmd.append("select log.* ,LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC "
@@ -1301,7 +1152,6 @@ public class SysOperLogDao {
                 }
             }
             rs = ps.executeQuery();
-            logger.info("Report Inquiry DAO: Query Finish and set data to rs");
 //                JSONObject logObj = new JSONObject();
 //                JSONObject detail = new JSONObject();
             JSONArray listDetail = new JSONArray();
@@ -1603,7 +1453,6 @@ public class SysOperLogDao {
                 ps.close();
             }
         }
-        logger.info("Report Inquiry : Return Data search DAO to Controller");
         return ret;
     }
 
@@ -1745,7 +1594,7 @@ public class SysOperLogDao {
                         .put("trnStatusName", ValidUtils.null2NoData(rs.getString("TRN_STATUS_NAME")))
                         .put("trnSubStatus", ValidUtils.null2NoData(rs.getString("TRN_SUB_STATUS")))
                         .put("trnSubStatusName", ValidUtils.null2NoData(rs.getString("TRN_SUB_STATUS_NAME")))
-                        .put("failureReason", ValidUtils.null2NoData(rs.getString("FAILURE_REASON")))
+                        .put("failReason", ValidUtils.null2NoData(rs.getString("FAILURE_REASON")))
                         .put("sourceCifId", ValidUtils.null2NoData(rs.getString("SOURCE_CIF_ID")))
                         .put("processError", ValidUtils.null2NoData(rs.getString("PROCESS_ERROR")))
                         .put("processErrorTh", ValidUtils.null2NoData(rs.getString("PROCESS_ERROR_NAME_TH")))
@@ -1834,7 +1683,7 @@ public class SysOperLogDao {
                     + "AND LOG.STATUS::TEXT = SL.LOOKUP_CODE  "
                     + "AND LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE  "
                     //                      + "AND STATE_CODE IN (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE IN ('PRO1013', 'PRO1014', 'PRO1015', 'PRO1016', 'PRO1017','PRO1018'))  ");
-                    + "AND STATE_CODE IN (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE IN ('PRO1013', 'PRO1014', 'PRO1015','PRO1017','PRO1051','PRO1054', 'PRO1016','PRO1050','PRO1052','PRO1053','PRO1055','PRO1056','PRO1057','PRO1058', 'PRO1018'))  ");
+                    + "AND STATE_CODE IN (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE IN ('PRO1013', 'PRO1014', 'PRO1015','PRO1017','PRO1051','PRO1054', 'PRO1016','PRO1052','PRO1053','PRO1055','PRO1056','PRO1057','PRO1058', 'PRO1018'))  ");
             if (null != prodCode && !prodCode.isEmpty()) {
                 reconcileCmd.append(" AND PRODUCT_CODE = ? ");
                 params.add(prodCode);
@@ -1919,19 +1768,18 @@ public class SysOperLogDao {
                 }
                 JSONObject summary = new JSONObject();
                 summary.put("prospect", new JSONObject().put("txnsStatus", "Prospect").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("prospectOnline", new JSONObject().put("txnsStatus", "ProspectOnline").put("noOfTxns", 0).put("limitAmount", "0.0"));
                 summary.put("waitForBookLoan", new JSONObject().put("txnsStatus", "Wait for Book Loan").put("noOfTxns", 0).put("limitAmount", "0.0"));
                 summary.put("waitForTransfer", new JSONObject().put("txnsStatus", "Wait for Transfer").put("noOfTxns", 0).put("limitAmount", "0.0"));
                 summary.put("transferFail", new JSONObject().put("txnsStatus", "Transfer Fail").put("noOfTxns", 0).put("limitAmount", "0.0"));
                 summary.put("transferComplete", new JSONObject().put("txnsStatus", "Transfer Complete").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("transferCompleteOnline", new JSONObject().put("txnsStatus", "Transfer Complete (Online)").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("transferCompleteSchedule", new JSONObject().put("txnsStatus", "Transfer Complete (Schedule)").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("transferFailOnline", new JSONObject().put("txnsStatus", "Transfer Fail (Online)").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("transferFailSchedule", new JSONObject().put("txnsStatus", "Transfer Fail (Schedule)").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("bookLoanCompleteOnline", new JSONObject().put("txnsStatus", "Book Loan Complete (Online) ").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("bookLoanCompleteSchedule", new JSONObject().put("txnsStatus", "Book Loan Complete (Schedule)").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("bookLoanFailOnline", new JSONObject().put("txnsStatus", "Book Loan Fail (Online)").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                summary.put("bookLoanFailSchedule", new JSONObject().put("txnsStatus", "Book Loan Fail (Schedule)").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("transferCompleteOnline", new JSONObject().put("txnsStatus", "Transfer Complete").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("transferCompleteSchedule", new JSONObject().put("txnsStatus", "Transfer Complete").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("transferFailOnline", new JSONObject().put("txnsStatus", "Transfer Fail").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("transferFailSchedule", new JSONObject().put("txnsStatus", "Transfer Fail").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("bookLoanCompleteOnline", new JSONObject().put("txnsStatus", "Wait for Book Loan").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("bookLoanCompleteSchedule", new JSONObject().put("txnsStatus", "Wait for Transfer").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("bookLoanFailOnline", new JSONObject().put("txnsStatus", "Wait for Book Loan").put("noOfTxns", 0).put("limitAmount", "0.0"));
+                summary.put("bookLoanFailSchedule", new JSONObject().put("txnsStatus", "Wait for Transfer").put("noOfTxns", 0).put("limitAmount", "0.0"));
                 summary.put("cancel", new JSONObject().put("txnsStatus", "Cancel").put("noOfTxns", 0).put("limitAmount", "0.0"));
                 detail.put("detail", new JSONArray());
                 detail.put("summary", summary);
@@ -2075,15 +1923,8 @@ public class SysOperLogDao {
                         if (!psOperLog.isClosed()) {
                             psOperLog.close();
                         }
-                        if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1013")) {//Prospect manual
+                        if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1013")) {//Prospect
                             JSONObject prospect = detail.getJSONObject("summary").getJSONObject("prospect");
-                            prospect.put("noOfTxns", prospect.getInt("noOfTxns") + 1)
-                                    .put("limitAmount", ValidUtils.priceToString(
-                                            ((prospect.has("limitAmount") ? ValidUtils.obj2Double(prospect.getString("limitAmount")) : 0.0) + ValidUtils.obj2Double(stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.00"))
-                                    //                                            / summary.getInt("noOfTxns")
-                                    ));
-                        } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1050")) {//Prospect Online
-                            JSONObject prospect = detail.getJSONObject("summary").getJSONObject("prospectOnline");
                             prospect.put("noOfTxns", prospect.getInt("noOfTxns") + 1)
                                     .put("limitAmount", ValidUtils.priceToString(
                                             ((prospect.has("limitAmount") ? ValidUtils.obj2Double(prospect.getString("limitAmount")) : 0.0) + ValidUtils.obj2Double(stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.00"))
@@ -2152,21 +1993,21 @@ public class SysOperLogDao {
                                             ((transferComplete.has("limitAmount") ? ValidUtils.obj2Double(transferComplete.getString("limitAmount")) : 0.0) + ValidUtils.obj2Double(stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.00"))
                                     //                                            / summary.getInt("noOfTxns")
                                     ));
-                        } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1056")) {//Complete Bookloan Schedule
+                        }else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1056")) {//Complete Bookloan Schedule
                             JSONObject transferComplete = detail.getJSONObject("summary").getJSONObject("bookLoanCompleteSchedule");
                             transferComplete.put("noOfTxns", transferComplete.getInt("noOfTxns") + 1)
                                     .put("limitAmount", ValidUtils.priceToString(
                                             ((transferComplete.has("limitAmount") ? ValidUtils.obj2Double(transferComplete.getString("limitAmount")) : 0.0) + ValidUtils.obj2Double(stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.00"))
                                     //                                            / summary.getInt("noOfTxns")
                                     ));
-                        } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1057")) {//Fail Bookloan Schedule
+                        }else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1057")) {//Fail Bookloan Schedule
                             JSONObject transferComplete = detail.getJSONObject("summary").getJSONObject("bookLoanFailOnline");
                             transferComplete.put("noOfTxns", transferComplete.getInt("noOfTxns") + 1)
                                     .put("limitAmount", ValidUtils.priceToString(
                                             ((transferComplete.has("limitAmount") ? ValidUtils.obj2Double(transferComplete.getString("limitAmount")) : 0.0) + ValidUtils.obj2Double(stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.00"))
                                     //                                            / summary.getInt("noOfTxns")
                                     ));
-                        } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1058")) {//Fail Bookloan Schedule
+                        }else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1058")) {//Fail Bookloan Schedule
                             JSONObject transferComplete = detail.getJSONObject("summary").getJSONObject("bookLoanFailSchedule");
                             transferComplete.put("noOfTxns", transferComplete.getInt("noOfTxns") + 1)
                                     .put("limitAmount", ValidUtils.priceToString(
@@ -2241,7 +2082,6 @@ public class SysOperLogDao {
                         header.put("productCode", sysOperLog.getProductCode());
                         JSONObject summary = new JSONObject();
                         summary.put("prospect", new JSONObject().put("txnsStatus", "Prospect").put("noOfTxns", 0).put("limitAmount", "0.0"));
-                        summary.put("prospectOnline", new JSONObject().put("txnsStatus", "ProspectOnline").put("noOfTxns", 0).put("limitAmount", "0.0"));
                         summary.put("waitForBookLoan", new JSONObject().put("txnsStatus", "Wait for Book Loan").put("noOfTxns", 0).put("limitAmount", "0.0"));
                         summary.put("waitForTransfer", new JSONObject().put("txnsStatus", "Wait for Transfer").put("noOfTxns", 0).put("limitAmount", "0.0"));
                         summary.put("transferFail", new JSONObject().put("txnsStatus", "Transfer Fail").put("noOfTxns", 0).put("limitAmount", "0.0"));
@@ -2249,8 +2089,6 @@ public class SysOperLogDao {
                         summary.put("cancel", new JSONObject().put("txnsStatus", "Cancel").put("noOfTxns", 0).put("limitAmount", "0.0"));
                         if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1013")) {//Prospect
                             summary.put("prospect", new JSONObject().put("txnsStatus", "Prospect").put("noOfTxns", 1).put("limitAmount", stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.0"));
-                        } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1050")) {//Prospect Online
-                            summary.put("prospectOnline", new JSONObject().put("txnsStatus", "ProspectOnline").put("noOfTxns", 1).put("limitAmount", stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.0"));
                         } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1014")) {//Wait for Book Loan
                             summary.put("waitForBookLoan", new JSONObject().put("txnsStatus", "Wait for Book Loan").put("noOfTxns", 1).put("limitAmount", stepData.has("requestLimit") ? stepData.getString("requestLimit") : "0.0"));
                         } else if (rs.getString("ST_CODE").equalsIgnoreCase("PRO1015")) {//Wait for Transfer
@@ -2474,9 +2312,9 @@ public class SysOperLogDao {
         return jsonArr;
     }
 
-    public JSONObject getTransferTransaction(String dbEnv, String compCode, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart,
+    public JSONObject getTransferTransaction(String dbEnv, String company, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart,
             String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId, String traceNo, String minAmount,
-            String maxAmount, Integer prospect, int offSet,int page) throws SQLException, UnsupportedEncodingException, ParseException {
+            String maxAmount, Integer prospect) throws SQLException, UnsupportedEncodingException, ParseException {
         JSONObject ret = new JSONObject();
         PreparedStatement ps = null, psOperLog = null;
         ResultSet rs = null, stepDataRs = null;
@@ -2484,26 +2322,28 @@ public class SysOperLogDao {
         try (Session session = getSessionMaster(dbEnv).openSession()) {
             StringBuilder transferCmd = new StringBuilder();
             List params = new ArrayList<>();
-            transferCmd.append("select log.* ,LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC, COMP.COMP_NAME COMPNAME "
+            transferCmd.append("select log.* ,LK.LOOKUP_CODE ST_CODE, LK.LOOKUP_NAME_EN STATE_NAME, LK.LOOKUP_NAME_TH, SL.LOOKUP_NAME_EN STATUS_NAME, SP.COMPANY COMPANY ,LK2.LOOKUP_NAME_TH ERR_NAME_TH, LK2.LOOKUP_NAME_EN ERR_NAME_EN, LK2.DESCRIPTION ERR_DESC "
                     + "from t_sys_oper_log LOG "
                     + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID  "
                     + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
                     + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
                     + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
-                    + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
-                    + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE "
-                    + "WHERE LOG.PRODUCT_COMPONENT_ID = COMP.UUID ");
+                    + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE  "
+                    + "WHERE log.uuid IN "
+                    + "( "
+                    + "         select uuid from ("
+                    + "   select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP(log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "
+                    + "   from t_sys_oper_log log "
+                    + "        )A "
+                    + "        where A.ROW_NO = 1 "
+                    + " ) ");
             if (null != state && !state.isEmpty()) {
                 transferCmd.append(" AND LOG.STATE_CODE = (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE = ?) ");
                 params.add(state);
             }
-            if (null != status) {
-                transferCmd.append(" AND LOG.STATUS = ? ");
-                params.add(status);
-            }
-            if (null != compCode && !compCode.isEmpty()) {
-                transferCmd.append(" AND LOG.PRODUCT_COMPONENT_ID = ? ");
-                params.add(compCode);
+            if (null != company && !company.isEmpty()) {
+                transferCmd.append(" AND SP.COMPANY = ? ");
+                params.add(company);
             }
             if (null != groupProduct && !groupProduct.isEmpty()) {
                 transferCmd.append(" AND LOG.GROUP_PRODUCT = ? ");
@@ -2522,7 +2362,9 @@ public class SysOperLogDao {
                 params.add("%" + refNo + "%");
             }
             if (null != ucId && !ucId.isEmpty()) {
+//                inquiryCmd.append(" AND LOG.ATTR1 = ? ");
                 String id[] = ucId.replace("(", "").replace(")", "").replace("'", "").split(",");
+//                transactionCmd.append(" AND LOG.ATTR1 = ? ");
                 StringBuilder subCmd = new StringBuilder();
                 subCmd.append(" AND LOG.ATTR1 in ( ? ");
 
@@ -2536,7 +2378,9 @@ public class SysOperLogDao {
                 transferCmd.append(subCmd);
             }
             if (null != refTxnId && !refTxnId.isEmpty()) {
+//                inquiryCmd.append(" AND LOG.ATTR1 = ? ");
                 String id[] = refTxnId.replace("(", "").replace(")", "").replace("'", "").split(",");
+//                transactionCmd.append(" AND LOG.ATTR1 = ? ");
                 StringBuilder subCmd = new StringBuilder();
                 subCmd.append(" AND LOWER(LOG.TXN_NO) in ( ? ");
                 for (int i = 1; i < id.length; i++) {
@@ -2600,12 +2444,9 @@ public class SysOperLogDao {
                 transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) <= ? ");
                 params.add(ValidUtils.str2Dec(maxAmount));
             }
-            transferCmd.append(" ORDER BY LOG.CREATE_AT ASC ");
-            if (page > 0) {
-                transferCmd.append(" LIMIT 10 OFFSET ? ");
-                params.add(offSet);
-            }
-            System.out.println("transferCmd : "+transferCmd);
+//            transferCmd.append(" and LOG.status <> ?");
+//            params.add(prospect);
+            transferCmd.append(" ORDER BY LOG.CREATE_AT ASC");
             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transferCmd.toString());
             if (params.size() > 0) {
                 for (int i = 0; i < params.size(); i++) {
@@ -2744,11 +2585,7 @@ public class SysOperLogDao {
                             .put("ucId", ValidUtils.null2NoData(sysOperLog.getAttr1()))
                             .put("updatedDate", DateUtils.getDisplayEnDate(ValidUtils.str2Date(sysOperLog.getAttr4(), "yyyy-MM-dd HH:mm:ss"), "dd/MM/yyyy HH:mm"))
                             .put("agreementDate", ValidUtils.null2NoData(sysOperLog.getAttr3()))
-                            .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
-                            .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
-                            .put("traceNo", ValidUtils.null2NoData(sysOperLog.getAttr6()))
-                            .put("minMax", ValidUtils.null2NoData(sysOperLog.getAttr7()))
-                            .put("compName", !rs.getString("COMPNAME").isEmpty() ? rs.getString("COMPNAME") : "");
+                            .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()));
                     if (packageDataArr.length() == 0) {
                         String packageData = "[{'respDesc': '', 'code': '', 'data': { 'payDuedate': '', 'buDay': '', 'package': [], 'hpDueDate': '', 'channel': '', 'limit': '', 'hpNo': '', 'discount': '', 'term': '', 'payDate': '', 'lastDueDate': '' }, 'respCode': '', 'status': ''}]";
                         packageDataArr = new JSONArray(packageData);
@@ -2823,11 +2660,7 @@ public class SysOperLogDao {
                             .put("ucId", ValidUtils.null2NoData(sysOperLog.getAttr1()))
                             .put("updatedDate", DateUtils.getDisplayEnDate(ValidUtils.str2Date(sysOperLog.getAttr4(), "yyyy-MM-dd HH:mm:ss"), "dd/MM/yyyy HH:mm"))
                             .put("agreementDate", ValidUtils.null2NoData(sysOperLog.getAttr3()))
-                            .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()))
-                            .put("failureReason", ValidUtils.null2NoData(sysOperLog.getFailureReason()))
-                            .put("traceNo", ValidUtils.null2NoData(sysOperLog.getAttr6()))
-                            .put("minMax", ValidUtils.null2NoData(sysOperLog.getAttr7()))
-                            .put("compName", !rs.getString("COMPNAME").isEmpty() ? rs.getString("COMPNAME") : "");
+                            .put("trnStatus", ValidUtils.null2NoData(sysOperLog.getTrnStatus()));
                     if (packageDataArr.length() == 0) {
                         String packageData = "[{'respDesc': '', 'code': '', 'data': { 'payDuedate': '', 'buDay': '', 'package': [], 'hpDueDate': '', 'channel': '', 'limit': '', 'hpNo': '', 'discount': '', 'term': '', 'payDate': '', 'lastDueDate': '' }, 'respCode': '', 'status': ''}]";
                         packageDataArr = new JSONArray(packageData);
@@ -2922,594 +2755,4 @@ public class SysOperLogDao {
         }
         return ret;
     }
-
-    public int getTransferTransactionCount(String dbEnv, String compCode, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart,
-            String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId, String traceNo, String minAmount,
-            String maxAmount, Integer prospect) throws SQLException, UnsupportedEncodingException, ParseException {
-        JSONObject ret = new JSONObject();
-        PreparedStatement ps = null, psOperLog = null;
-        ResultSet rs = null, stepDataRs = null;
-        String cutOff = "";
-        int total = 0;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            StringBuilder transferCmd = new StringBuilder();
-            List params = new ArrayList<>();
-            transferCmd.append("select count(LOG.uuid) AS total "
-                    + "from t_sys_oper_log LOG "
-                    + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID  "
-                    + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
-                    + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
-                    + "INNER JOIN T_SYS_LOOKUP SL2 ON LOG.TRN_STATUS::TEXT = SL2.LOOKUP_CODE "
-                    + "INNER JOIN T_SHELF_COMP COMP ON LOG.PRODUCT_COMPONENT_ID = COMP.UUID "
-                    + "LEFT JOIN T_SHELF_LOOKUP LK2 ON LOG.ATTR2 = LK2.LOOKUP_CODE "
-                    + "WHERE LOG.PRODUCT_COMPONENT_ID = COMP.UUID ");
-            if (null != state && !state.isEmpty()) {
-                transferCmd.append(" AND LOG.STATE_CODE = (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE = ?) ");
-                params.add(state);
-            }
-            if (null != status) {
-                transferCmd.append(" AND LOG.STATUS = ? ");
-                params.add(status);
-            }
-            if (null != compCode && !compCode.isEmpty()) {
-                transferCmd.append(" AND LOG.PRODUCT_COMPONENT_ID = ? ");
-                params.add(compCode);
-            }
-            if (null != groupProduct && !groupProduct.isEmpty()) {
-                transferCmd.append(" AND LOG.GROUP_PRODUCT = ? ");
-                params.add(groupProduct);
-            }
-            if (null != prodCode && !prodCode.isEmpty()) {
-                transferCmd.append(" AND LOG.PRODUCT_CODE = ? ");
-                params.add(prodCode);
-            }
-            if (null != txnId && !txnId.isEmpty()) {
-                transferCmd.append(" AND LOWER(LOG.TXN_NO) LIKE ? ");
-                params.add("%" + txnId.toLowerCase() + "%");
-            }
-            if (null != refNo && !refNo.isEmpty()) {
-                transferCmd.append(" AND LOG.REF_NO LIKE ? ");
-                params.add("%" + refNo + "%");
-            }
-            if (null != ucId && !ucId.isEmpty()) {
-                String id[] = ucId.replace("(", "").replace(")", "").replace("'", "").split(",");
-                StringBuilder subCmd = new StringBuilder();
-                subCmd.append(" AND LOG.ATTR1 in ( ? ");
-
-                for (int i = 1; i < id.length; i++) {
-                    subCmd.append(", ? ");
-                }
-                subCmd.append(") ");
-                for (int i = 0; i < id.length; i++) {
-                    params.add(id[i]);
-                }
-                transferCmd.append(subCmd);
-            }
-            if (null != refTxnId && !refTxnId.isEmpty()) {
-                String id[] = refTxnId.replace("(", "").replace(")", "").replace("'", "").split(",");
-                StringBuilder subCmd = new StringBuilder();
-                subCmd.append(" AND LOWER(LOG.TXN_NO) in ( ? ");
-                for (int i = 1; i < id.length; i++) {
-                    subCmd.append(", ? ");
-                }
-                subCmd.append(") ");
-                for (int i = 0; i < id.length; i++) {
-                    params.add(id[i].toLowerCase());
-                }
-                transferCmd.append(subCmd);
-            }
-            if (null != paymentMethod && !paymentMethod.isEmpty()) {
-                transferCmd.append(" AND LOG.PAYMENT_METHOD = ? ");
-                params.add(paymentMethod);
-            }
-            if (null != txnStartTime && !txnStartTime.isEmpty()) {
-                txnStartTime += ":00";
-            } else {
-                txnStartTime = "00:00:00";
-            }
-            if (null != txnEndTime && !txnEndTime.isEmpty()) {
-                txnEndTime += ":59";
-            } else {
-                txnEndTime = "23:59:59";
-            }
-            if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
-                transferCmd.append(" AND LOG.CREATE_AT BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(txnDateStart + " " + txnStartTime);
-                params.add(txnDateEnd + " " + txnEndTime);
-            } else if ((null == txnDateStart || txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
-                transferCmd.append(" AND LOG.CREATE_AT <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(txnDateEnd + " " + txnEndTime);
-            } else if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null == txnDateEnd || txnDateEnd.isEmpty())) {
-                transferCmd.append(" AND LOG.CREATE_AT >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(txnDateStart + " " + txnStartTime);
-            }
-            if ((null != paymentDateStart && !paymentDateStart.isEmpty()) && (null != paymentDateEnd && !paymentDateEnd.isEmpty())) {
-                transferCmd.append(" AND LOG.PAYMENT_DATE BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(paymentDateStart + " 00:00:00");
-                params.add(paymentDateEnd + " 23:59:59");
-            } else if ((null == paymentDateStart || paymentDateStart.isEmpty()) && (null != paymentDateEnd && !paymentDateEnd.isEmpty())) {
-                transferCmd.append(" AND LOG.PAYMENT_DATE <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(paymentDateEnd + " 23:59:59");
-            } else if ((null != paymentDateStart && !paymentDateStart.isEmpty()) && (null == paymentDateEnd || paymentDateEnd.isEmpty())) {
-                transferCmd.append(" AND LOG.PAYMENT_DATE >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(paymentDateStart + " 00:00:00");
-            }
-            if (null != traceNo && !traceNo.isEmpty()) {
-                transferCmd.append(" AND LOG.ATTR6 = ? ");
-                params.add(traceNo);
-            }
-            if ((null != minAmount && !minAmount.isEmpty()) && (null != maxAmount && !maxAmount.isEmpty())) {
-                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) >= ? ");
-                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) <= ? ");
-                params.add(ValidUtils.str2Dec(minAmount));
-                params.add(ValidUtils.str2Dec(maxAmount));
-            } else if ((null != minAmount && !minAmount.isEmpty()) && (null == maxAmount || maxAmount.isEmpty())) {
-                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) >= ? ");
-                params.add(ValidUtils.str2Dec(minAmount));
-            } else if ((null != maxAmount && !maxAmount.isEmpty()) && (null == minAmount || minAmount.isEmpty())) {
-                transferCmd.append(" AND CAST (LOG.ATTR7 AS DOUBLE PRECISION) <= ? ");
-                params.add(ValidUtils.str2Dec(maxAmount));
-            }
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(transferCmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else if (params.get(i) instanceof BigDecimal) {
-                        ps.setBigDecimal(i + 1, (BigDecimal) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            rs = ps.executeQuery();
-            JSONArray listDetail = new JSONArray();
-            JSONObject header = new JSONObject();
-            while (rs.next()) {
-                total = rs.getInt("total");
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (stepDataRs != null && !stepDataRs.isClosed()) {
-                stepDataRs.close();
-            }
-            if (psOperLog != null && !psOperLog.isClosed()) {
-                psOperLog.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
-        }
-        return total;
-    }
-
-    public JSONObject getDataHistory(String dbEnv, String company, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart, String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
-        JSONObject ret = new JSONObject();
-        PreparedStatement ps = null, psOperLog = null;
-        ResultSet rs = null, stepDataRs = null;
-        String cutOff = "";
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            StringBuilder cmd = new StringBuilder();
-            List params = new ArrayList<>();
-            cmd.append("SELECT COMP.COMP_NAME COMPONENTNAME, LOOKUP.LOOKUP_NAME_EN STATENAME , SYSLOOK.LOOKUP_NAME_EN STATUSNAME, "
-                      + "SYS.REF_NO REFNO, SYS.TXN_NO TXNNO ,SYS.TRN_STATUS TRNSTATUS ,SYS.FAILURE_REASON FAILUREREASON , "
-                      + "SYS.CREATE_AT CREATEAT, SYS.PRODUCT_ID PRODUCTID, SYS.PRODUCT_CODE PRODUCTCODE, SYS.PRODUCT_VERSION_ID PRODUCTVERSIONID "
-                      + "FROM T_SYS_OPER_LOG SYS, T_SHELF_TMP_DETAIL TMP_DTL, T_SHELF_COMP COMP, T_SHELF_PRODUCT_VCS PROD_VCS, "
-                      + "T_SHELF_TMP_VCS TMP_VCS, T_SHELF_LOOKUP LOOKUP, T_SYS_LOOKUP SYSLOOK "
-                      + "WHERE 1=1 AND PROD_VCS.COMP_UUID = TMP_DTL.COMP_UUID AND COMP.UUID = TMP_DTL.COMP_UUID "
-                      + "AND TMP_VCS.UUID = TMP_DTL.VCS_UUID AND PROD_VCS.PROD_UUID = SYS.PRODUCT_ID "
-                      + "AND PROD_VCS.VER_PROD = CAST(SYS.PRODUCT_VERSION_ID AS INT) AND TMP_VCS.TMP_UUID = PROD_VCS.TEM_UUID "
-                      + "AND TMP_VCS.VERSION = PROD_VCS.VER_TEM AND LOOKUP.UUID = SYS.STATE_CODE "
-                      + "AND SYS.STATUS::TEXT = SYSLOOK.LOOKUP_CODE "
-                      + "AND SYS.PRODUCT_COMPONENT_ID = PROD_VCS.COMP_UUID AND PROD_VCS.COMP_STATUS = 213 " );
-            
-            if (null != txnId && !txnId.isEmpty()) {
-                cmd.append(" AND LOWER(SYS.TXN_NO) LIKE ? ");
-                params.add("%" + txnId.toLowerCase() + "%");
-            }
-            
-            cmd.append(" GROUP BY COMP.COMP_NAME, LOOKUP.LOOKUP_NAME_EN, SYSLOOK.LOOKUP_NAME_EN, SYS.TRN_STATUS, ");
-            cmd.append(" SYS.FAILURE_REASON, SYS.CREATE_AT, TMP_DTL.SEQ_NO, SYS.REF_NO, SYS.TXN_NO, "
-                      + " SYS.PRODUCT_ID , SYS.PRODUCT_CODE , SYS.PRODUCT_VERSION_ID ");
-            cmd.append(" ORDER BY TMP_DTL.SEQ_NO, SYS.CREATE_AT; ");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            rs = ps.executeQuery();
-            System.out.println("ps  :  "+ps);
-            JSONArray listDetail = new JSONArray();
-            JSONObject header = new JSONObject();
-            while (rs.next()) {
-                if (ret.has("detail")) {
-                    JSONObject obj = new JSONObject();
-                    obj.put("txnsId", ValidUtils.null2NoData(rs.getString("TXNNO")))
-                            .put("refNo", ValidUtils.null2NoData(rs.getString("REFNO")))
-                            .put("txnsDateTime",DateUtils.getDisplayEnDate(rs.getDate("CREATEAT"), "dd/MM/yyyy HH:mm"))
-                            .put("status", ValidUtils.null2NoData(rs.getString("STATUSNAME")))
-                            .put("state", ValidUtils.null2NoData(rs.getString("STATENAME")))
-                            .put("trnStatus", ValidUtils.null2NoData(rs.getString("TRNSTATUS")))
-                            .put("failureReason", ValidUtils.null2NoData(rs.getString("FAILUREREASON")))
-                            .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? ValidUtils.null2NoData(rs.getString("COMPONENTNAME")) : "");
-                    
-                    ret.getJSONArray("detail").put(obj);
-                } else {
-                    JSONObject obj = new JSONObject();
-                    obj.put("txnsId", ValidUtils.null2NoData(rs.getString("TXNNO")))
-                            .put("refNo", ValidUtils.null2NoData(rs.getString("REFNO")))
-                            .put("txnsDateTime",DateUtils.getDisplayEnDate(rs.getDate("CREATEAT"), "dd/MM/yyyy HH:mm"))
-                            .put("status", ValidUtils.null2NoData(rs.getString("STATUSNAME")))
-                            .put("state", ValidUtils.null2NoData(rs.getString("STATENAME")))
-                            .put("trnStatus", ValidUtils.null2NoData(rs.getString("TRNSTATUS")))
-                            .put("failureReason", ValidUtils.null2NoData(rs.getString("FAILUREREASON")))
-                            .put("componentName", !rs.getString("COMPONENTNAME").isEmpty() ? ValidUtils.null2NoData(rs.getString("COMPONENTNAME")) : "");
-                    
-                    if (null != prodCode && !prodCode.isEmpty()) {
-                        cmd.setLength(0);
-                        cmd.append("SELECT LK_CODE,LK_LABEL,LK_VALUE FROM T_SHELF_PRODUCT_DTL WHERE 1=1 "
-                                + " AND TRN_UUID IN (SELECT UUID FROM T_SHELF_PRODUCT_VCS VCS WHERE VCS.PROD_UUID = ? AND VER_PROD = ? )"
-                                + " AND LK_CODE IN ('cutOffTime','pcutOffDay','pcutOffWE','pcutOffTime','pcutOffTAllD','pcutOffTSpec', 'prodName', 'prodType')");
-                        psOperLog = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-                        psOperLog.setString(1, rs.getString("PRODUCTID"));
-                        psOperLog.setInt(2, ValidUtils.str2BigInteger(rs.getString("PRODUCTVERSIONID")));
-                        stepDataRs = psOperLog.executeQuery();
-                        while (stepDataRs.next()) {
-                            if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("prodName")) {
-                                header.put("productName", stepDataRs.getString("LK_VALUE"));
-                            } else if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("pcutOffTSpec") || stepDataRs.getString("LK_CODE").equalsIgnoreCase("pcutOffTAllD")) {
-                                if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("pcutOffTAllD")) {
-                                    cutOff = stepDataRs.getString("LK_VALUE");
-                                } else {
-                                    if (!stepDataRs.getString("LK_VALUE").isEmpty() && (cutOff.equalsIgnoreCase("cutoff")) || cutOff.isEmpty()) {
-                                        header.put("productCutOffTime", stepDataRs.getString("LK_VALUE"));
-                                    } else {
-                                        header.put("productCutOffTime", "All Day");
-                                    }
-                                }
-                            } else if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("prodType")) {
-                                obj.put("productType", stepDataRs.getString("LK_VALUE"));
-                            }
-                        }
-                        if (!stepDataRs.isClosed()) {
-                            stepDataRs.close();
-                        }
-                        if (!psOperLog.isClosed()) {
-                            psOperLog.close();
-                        }
-                        header.put("productCode", rs.getString("PRODUCTCODE"));
-                    } else {
-                        header.put("productName", "All");
-                        header.put("productCode", "All");
-                        header.put("productCutOffTime", "");
-                    }
-                    listDetail.put(obj);
-                    ret.put("detail", listDetail);
-                    ret.put("header", header);
-                }
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (stepDataRs != null && !stepDataRs.isClosed()) {
-                stepDataRs.close();
-            }
-            if (psOperLog != null && !psOperLog.isClosed()) {
-                psOperLog.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
-        }
-        return ret;
-    }
-
-    public JSONObject getInquiryTransactionNew(String dbEnv, String company, String groupProduct, String ucId, String prodCode, String refNo, String paymentMethod, String txnId, String txnDateStart, String txnStartTime, String txnDateEnd, String txnEndTime, Integer status, String state, String paymentDateStart, String paymentDateEnd, String refTxnId) throws SQLException, UnsupportedEncodingException, ParseException {
-        JSONObject ret = new JSONObject();
-        PreparedStatement ps = null, psOperLog = null;
-        ResultSet rs = null, stepDataRs = null;
-        String cutOff = "";
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            StringBuilder inquiryCmd = new StringBuilder();
-            List params = new ArrayList<>();
-            inquiryCmd.append("select log.product_id, log.product_code, log.product_version_id, log.txn_no, log.ref_no, log.payment_method, log.create_at, LK.LOOKUP_NAME_EN STATE_NAME, SL.LOOKUP_NAME_EN STATUS_NAME "
-                    + "from t_sys_oper_log LOG "
-                    + "INNER JOIN T_SHELF_LOOKUP LK ON LOG.STATE_CODE = LK.UUID  "
-                    + "INNER JOIN T_SYS_LOOKUP SL ON LOG.STATUS::TEXT = SL.LOOKUP_CODE "
-                    + "INNER JOIN T_SHELF_PRODUCT SP ON LOG.PRODUCT_ID = SP.UUID "
-                    + "WHERE log.uuid IN "
-                    + "( "
-                    + "         select uuid from ("
-                    + "   select uuid, row_number() over (partition by txn_no order by TO_TIMESTAMP(log.ATTR4, 'yyyy-MM-dd HH24:MI:SS') desc, log.CREATE_AT desc) as ROW_NO "
-                    + "   from t_sys_oper_log log "
-                    + "        )A "
-                    + "        where A.ROW_NO = 1 "
-                    + " ) ");
-            if (null != state && !state.isEmpty()) {
-                inquiryCmd.append(" AND LOG.STATE_CODE = (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE = ?) ");
-                params.add(state);
-            }
-            if (null != company && !company.isEmpty()) {
-                inquiryCmd.append(" AND SP.COMPANY = ? ");
-                params.add(company);
-            }
-            if (null != groupProduct && !groupProduct.isEmpty()) {
-                inquiryCmd.append(" AND LOG.GROUP_PRODUCT = ? ");
-                params.add(groupProduct);
-            }
-            if (null != prodCode && !prodCode.isEmpty()) {
-                inquiryCmd.append(" AND LOG.PRODUCT_CODE = ? ");
-                params.add(prodCode);
-            }
-            if (null != txnId && !txnId.isEmpty()) {
-                inquiryCmd.append(" AND LOWER(LOG.TXN_NO) LIKE ? ");
-                params.add("%" + txnId.toLowerCase() + "%");
-            }
-            if (null != refNo && !refNo.isEmpty()) {
-                inquiryCmd.append(" AND LOG.REF_NO LIKE ? ");
-                params.add("%" + refNo + "%");
-            }
-            if (null != ucId && !ucId.isEmpty()) {
-                String id[] = ucId.replace("(", "").replace(")", "").replace("'", "").split(",");
-                StringBuilder subCmd = new StringBuilder();
-                subCmd.append(" AND LOG.ATTR1 in ( ? ");
-
-                for (int i = 1; i < id.length; i++) {
-                    subCmd.append(", ? ");
-                }
-                subCmd.append(") ");
-                for (int i = 0; i < id.length; i++) {
-                    params.add(id[i]);
-                }
-                inquiryCmd.append(subCmd);
-            }
-            if (null != refTxnId && !refTxnId.isEmpty()) {
-                String id[] = refTxnId.replace("(", "").replace(")", "").replace("'", "").split(",");
-                StringBuilder subCmd = new StringBuilder();
-                subCmd.append(" AND LOWER(LOG.TXN_NO) in ( ? ");
-                for (int i = 1; i < id.length; i++) {
-                    subCmd.append(", ? ");
-                }
-                subCmd.append(") ");
-                for (int i = 0; i < id.length; i++) {
-                    params.add(id[i].toLowerCase());
-                }
-                inquiryCmd.append(subCmd);
-            }
-            if (null != paymentMethod && !paymentMethod.isEmpty()) {
-                inquiryCmd.append(" AND LOG.PAYMENT_METHOD = ? ");
-                params.add(paymentMethod);
-            }
-            if (null != txnStartTime && !txnStartTime.isEmpty()) {
-                txnStartTime += ":00";
-            } else {
-                txnStartTime = "00:00:00";
-            }
-            if (null != txnEndTime && !txnEndTime.isEmpty()) {
-                txnEndTime += ":59";
-            } else {
-                txnEndTime = "23:59:59";
-            }
-            if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
-                inquiryCmd.append(" AND LOG.CREATE_AT BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(txnDateStart + " " + txnStartTime);
-                params.add(txnDateEnd + " " + txnEndTime);
-            } else if ((null == txnDateStart || txnDateStart.isEmpty()) && (null != txnDateEnd && !txnDateEnd.isEmpty())) {
-                inquiryCmd.append(" AND LOG.CREATE_AT <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(txnDateEnd + " " + txnEndTime);
-            } else if ((null != txnDateStart && !txnDateStart.isEmpty()) && (null == txnDateEnd || txnDateEnd.isEmpty())) {
-                inquiryCmd.append(" AND LOG.CREATE_AT >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(txnDateStart + " " + txnStartTime);
-            }
-            if (null != status) {
-                inquiryCmd.append(" AND LOG.STATUS = ? ");
-                params.add(status);
-            }
-            if ((null != paymentDateStart && !paymentDateStart.isEmpty()) && (null != paymentDateEnd && !paymentDateEnd.isEmpty())) {
-                inquiryCmd.append(" AND LOG.PAYMENT_DATE BETWEEN TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS') AND TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(paymentDateStart + " 00:00:00");
-                params.add(paymentDateEnd + " 23:59:59");
-            } else if ((null == paymentDateStart || paymentDateStart.isEmpty()) && (null != paymentDateEnd && !paymentDateEnd.isEmpty())) {
-                inquiryCmd.append(" AND LOG.PAYMENT_DATE <= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(paymentDateEnd + " 23:59:59");
-            } else if ((null != paymentDateStart && !paymentDateStart.isEmpty()) && (null == paymentDateEnd || paymentDateEnd.isEmpty())) {
-                inquiryCmd.append(" AND LOG.PAYMENT_DATE >= TO_TIMESTAMP(?, 'DD/MM/YYYY HH24:MI:SS')");
-                params.add(paymentDateStart + " 00:00:00");
-            }
-            inquiryCmd.append(" ORDER BY LOG.CREATE_AT ASC ");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(inquiryCmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            rs = ps.executeQuery();
-            JSONArray listDetail = new JSONArray();
-            JSONObject header = new JSONObject();
-            while (rs.next()) {
-                SysOperLog sysOperLog = new SysOperLog();
-                sysOperLog.setTxnNo(rs.getString("txn_no"));
-                sysOperLog.setProductId(rs.getString("product_id"));
-                sysOperLog.setProductCode(rs.getString("product_code"));
-                sysOperLog.setProductVersionId(rs.getString("product_version_id"));
-                sysOperLog.setRefNo(rs.getString("ref_no"));
-                sysOperLog.setPaymentMethod(rs.getString("payment_method"));
-                sysOperLog.setCreateAt(rs.getTimestamp("create_at"));
-                inquiryCmd.setLength(0);
-                inquiryCmd.append("SELECT STEP_DATA, PAYMENT_METHOD FROM T_SYS_OPER_LOG WHERE TXN_NO = ? AND STATE_CODE in (SELECT UUID FROM T_SHELF_LOOKUP WHERE GROUP_TYPE = 'PROCESS_STATE' AND LOOKUP_CODE in ('PRO1011','PRO1032'))"); //PRO1011
-                psOperLog = session.doReturningWork((Connection conn) -> conn).prepareStatement(inquiryCmd.toString());
-                psOperLog.setString(1, sysOperLog.getTxnNo());
-                stepDataRs = psOperLog.executeQuery();
-                JSONObject stepData = new JSONObject();
-                stepData.put("paymentMethod", sysOperLog.getPaymentMethod());
-                JSONArray packageDataArr = new JSONArray();
-                while (stepDataRs.next()) {
-                    byte[] decoded = Base64.decodeBase64(stepDataRs.getString("STEP_DATA"));
-                    String stepDataIn = new String(decoded, "UTF-8");
-                    if (!stepDataIn.isEmpty()) {
-                        JSONArray stepDataArray = new JSONArray(stepDataIn);
-                        for (int i = 0; i < stepDataArray.length(); i++) {
-                            JSONObject stepDataObj = stepDataArray.getJSONObject(i);
-                            if (stepDataObj.getJSONObject("data").has("package")) {
-                                packageDataArr.put(stepDataObj);
-                            }
-                            if (stepDataObj.has("code") && stepDataObj.getString("code").equalsIgnoreCase("loan")) {
-                                if (stepDataObj.getJSONObject("data").has("package")) {
-                                    JSONArray packageDataArrLoan = stepDataObj.getJSONObject("data").getJSONArray("package");
-                                    for (int j = 0; j < packageDataArrLoan.length(); j++) {
-                                        JSONObject packageData = packageDataArrLoan.getJSONObject(j);
-                                        if (packageData.has("parameter")) {
-                                            switch (packageData.getString("parameter")) {
-                                                case "limit":
-                                                    stepData.put("requestLimit", packageData.getString("value"));
-                                                    break;
-                                                case "factor_2_from":
-                                                    stepData.put("month", packageData.getInt("value") + "");
-                                                    break;
-                                                case "calAmount1":
-                                                    stepData.put("installmentPerMonth", packageData.getString("value"));
-                                                    break;
-                                                case "rateAmount":
-                                                    stepData.put("interestRate", packageData.getDouble("value") + "");
-                                                    break;
-                                                case "paymentDate":
-                                                    stepData.put("paymentDate", packageData.getString("value"));
-                                                    break;
-                                            }
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (!stepDataRs.isClosed()) {
-                    stepDataRs.close();
-                }
-                if (!psOperLog.isClosed()) {
-                    psOperLog.close();
-                }
-                if (ret.has("detail")) {
-                    JSONObject obj = new JSONObject();
-                    obj.put("txnsId", ValidUtils.null2NoData(sysOperLog.getTxnNo()))
-                            .put("refNo", sysOperLog.getRefNo())
-                            .put("txnsDateTime", DateUtils.getDisplayEnDate(sysOperLog.getCreateAt(), "dd/MM/yyyy HH:mm"))
-                            .put("requestLimit", stepData.has("requestLimit") ? stepData.getString("requestLimit") : "")
-                            .put("paymentMethod", stepData.has("paymentMethod") ? stepData.getString("paymentMethod") : "")
-                            .put("status", rs.getString("STATUS_NAME"))
-                            .put("state", rs.getString("STATE_NAME"));
-
-                    inquiryCmd.setLength(0);
-                    inquiryCmd.append("SELECT LK_CODE,LK_LABEL,LK_VALUE FROM T_SHELF_PRODUCT_DTL WHERE 1=1 "
-                            + " AND TRN_UUID IN (SELECT UUID FROM T_SHELF_PRODUCT_VCS VCS WHERE VCS.PROD_UUID = ? AND VER_PROD = ? )"
-                            + " AND LK_CODE IN ('cutOffTime','pcutOffDay','pcutOffWE','pcutOffTime','pcutOffTAllD','pcutOffTSpec', 'prodName', 'prodType')");
-                    psOperLog = session.doReturningWork((Connection conn) -> conn).prepareStatement(inquiryCmd.toString());
-                    psOperLog.setString(1, sysOperLog.getProductId());
-                    psOperLog.setInt(2, ValidUtils.str2BigInteger(sysOperLog.getProductVersionId()));
-                    stepDataRs = psOperLog.executeQuery();
-                    while (stepDataRs.next()) {
-                        if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("prodType")) {
-                            obj.put("productType", stepDataRs.getString("LK_VALUE"));
-                        }
-                    }
-                    if (!stepDataRs.isClosed()) {
-                        stepDataRs.close();
-                    }
-                    if (!psOperLog.isClosed()) {
-                        psOperLog.close();
-                    }
-                    ret.getJSONArray("detail").put(obj);
-                } else {
-                    JSONObject obj = new JSONObject();
-                    obj.put("txnsId", ValidUtils.null2NoData(sysOperLog.getTxnNo()))
-                            .put("refNo", sysOperLog.getRefNo())
-                            .put("txnsDateTime", DateUtils.getDisplayEnDate(sysOperLog.getCreateAt(), "dd/MM/yyyy HH:mm"))
-                            .put("requestLimit", stepData.has("requestLimit") ? stepData.getString("requestLimit") : "")
-                            .put("paymentMethod", stepData.has("paymentMethod") ? stepData.getString("paymentMethod") : "")
-                            .put("status", rs.getString("STATUS_NAME"))
-                            .put("state", rs.getString("STATE_NAME"));
-
-                    if (null != prodCode && !prodCode.isEmpty()) {
-                        inquiryCmd.setLength(0);
-                        inquiryCmd.append("SELECT LK_CODE,LK_LABEL,LK_VALUE FROM T_SHELF_PRODUCT_DTL WHERE 1=1 "
-                                + " AND TRN_UUID IN (SELECT UUID FROM T_SHELF_PRODUCT_VCS VCS WHERE VCS.PROD_UUID = ? AND VER_PROD = ? )"
-                                + " AND LK_CODE IN ('cutOffTime','pcutOffDay','pcutOffWE','pcutOffTime','pcutOffTAllD','pcutOffTSpec', 'prodName', 'prodType')");
-                        psOperLog = session.doReturningWork((Connection conn) -> conn).prepareStatement(inquiryCmd.toString());
-                        psOperLog.setString(1, sysOperLog.getProductId());
-                        psOperLog.setInt(2, ValidUtils.str2BigInteger(sysOperLog.getProductVersionId()));
-                        stepDataRs = psOperLog.executeQuery();
-                        while (stepDataRs.next()) {
-                            if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("prodName")) {
-                                header.put("productName", stepDataRs.getString("LK_VALUE"));
-                            } else if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("pcutOffTSpec") || stepDataRs.getString("LK_CODE").equalsIgnoreCase("pcutOffTAllD")) {
-                                if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("pcutOffTAllD")) {
-                                    cutOff = stepDataRs.getString("LK_VALUE");
-                                } else {
-                                    if (!stepDataRs.getString("LK_VALUE").isEmpty() && (cutOff.equalsIgnoreCase("cutoff")) || cutOff.isEmpty()) {
-                                        header.put("productCutOffTime", stepDataRs.getString("LK_VALUE"));
-                                    } else {
-                                        header.put("productCutOffTime", "All Day");
-                                    }
-                                }
-                            } else if (stepDataRs.getString("LK_CODE").equalsIgnoreCase("prodType")) {
-                                obj.put("productType", stepDataRs.getString("LK_VALUE"));
-                            }
-//                            header.put("businessDate", DateUtils.getDisplayEnDate(sysOperLog.getBusinessDate(), "dd-MM-yyyy"));
-                        }
-                        if (!stepDataRs.isClosed()) {
-                            stepDataRs.close();
-                        }
-                        if (!psOperLog.isClosed()) {
-                            psOperLog.close();
-                        }
-                        header.put("productCode", sysOperLog.getProductCode());
-                    } else {
-                        header.put("productName", "All");
-                        header.put("productCode", "All");
-                        header.put("productCutOffTime", "");
-                    }
-                    listDetail.put(obj);
-                    ret.put("detail", listDetail);
-                    ret.put("header", header);
-                }
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (stepDataRs != null && !stepDataRs.isClosed()) {
-                stepDataRs.close();
-            }
-            if (psOperLog != null && !psOperLog.isClosed()) {
-                psOperLog.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
-        }
-        return ret;
-    }
-
 }

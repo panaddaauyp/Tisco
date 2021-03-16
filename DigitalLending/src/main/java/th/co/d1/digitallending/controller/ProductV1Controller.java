@@ -15,7 +15,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -40,7 +39,6 @@ import th.co.d1.digitallending.dao.ShelfProductDao;
 import th.co.d1.digitallending.dao.ShelfProductDtlDao;
 import th.co.d1.digitallending.dao.ShelfProductVcsDao;
 import th.co.d1.digitallending.dao.ShelfTmpDao;
-import th.co.d1.digitallending.dao.SysOperLogDao;
 import th.co.d1.digitallending.entity.ShelfComp;
 import th.co.d1.digitallending.entity.ShelfCompDtl;
 import th.co.d1.digitallending.entity.ShelfProduct;
@@ -892,8 +890,7 @@ public class ProductV1Controller {
                         .put("prodCode", ValidUtils.null2NoData(vcs.getProdUuid().getProdCode()))
                         .put("prodName", ValidUtils.null2NoData(vcs.getProdUuid().getProdName()))
                         .put("verProd", ValidUtils.null2NoData((vcs.getVerProd() == 0 ? "" : ValidUtils.obj2Int(vcs.getVerProd()))))
-                        .put("statusCode", StatusUtils.getStatusByCode(subState, String.valueOf(vcs.getStatus())).getStatusCode())
-                        .put("statusName", StatusUtils.getStatusByCode(subState, String.valueOf(vcs.getStatus())).getStatusNameEn());
+                        .put("statusName", StatusUtils.getStatusByCode(subState, String.valueOf(vcs.getStatus())).getStatusNameTh());
 
                 for (ShelfProductDtl spDtl : vcs.getShelfProductDtlList()) {
                     dtl.put(ValidUtils.null2NoData(spDtl.getLkCode()), ValidUtils.null2NoData(spDtl.getLkValue()));
@@ -1285,7 +1282,6 @@ public class ProductV1Controller {
             Integer statusActive = StatusUtils.getActive(subState).getStatusCode();
             Integer wait2pause = StatusUtils.getWaittoPause(subState).getStatusCode();
             Integer wait2Terminate = StatusUtils.getWaittoTerminate(subState).getStatusCode();
-            Integer wait2Start = StatusUtils.getWaittoStart(subState).getStatusCode();
             Integer pause = StatusUtils.getPause(subState).getStatusCode();
             ShelfProduct shelfProduct = null;
             ShelfProductVcs vcsPause = new ShelfProductVcs();
@@ -1293,7 +1289,7 @@ public class ProductV1Controller {
                 for (ShelfProduct prod : list) {
                     List<ShelfProductVcs> listVcs = prod.getShelfProductVcsList();
                     for (ShelfProductVcs vcs : listVcs) {
-                        if (vcs.getCompUuid() == null && (statusActive.equals(vcs.getStatus()) || wait2pause.equals(vcs.getStatus()) || wait2Terminate.equals(vcs.getStatus()) || wait2Start.equals(vcs.getStatus()))) {
+                        if (vcs.getCompUuid() == null && (statusActive.equals(vcs.getStatus()) || wait2pause.equals(vcs.getStatus()) || wait2Terminate.equals(vcs.getStatus()))) {
                             shelfProduct = vcs.getProdUuid();
                             isActive = true;
                         } else if (vcs.getCompUuid() == null && pause.equals(vcs.getStatus())) {
@@ -1547,22 +1543,7 @@ public class ProductV1Controller {
             String startUpdateDate = json.has("startUpdateDate") ? json.getString("startUpdateDate") : null;
             String endUpdateDate = json.has("endUpdateDate") ? json.getString("endUpdateDate") : null;
             String updateBy = json.has("updateBy") ? json.getString("updateBy") : null;
-//            returnVal.put("data", new ShelfProductDao().searchProduct(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy));
-
-            int page = json.getInt("page");
-
-            int offSet = (page - 1) * 10;
-            List<JSONObject> objReturn;
-            objReturn = new ShelfProductDao().searchProduct(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy ,offSet ,page);
-            int total = new ShelfProductDao().searchProductCount(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy);
-                JSONObject option = new JSONObject();
-                option.put("page", page);
-                option.put("next", page + 1);
-                option.put("prev", page - 1);
-                option.put("total",(int) Math.ceil(total / 10));
-                returnVal.put("option", option);
-            returnVal.put("data",objReturn);
-
+            returnVal.put("data", new ShelfProductDao().searchProduct(subState, templateName, productName, status, startActiveDate, endActiveDate, startUpdateDate, endUpdateDate, updateBy));
         } catch (JSONException | NullPointerException | HibernateException | SQLException e) {
             logger.info(e.getMessage());
             e.printStackTrace();
@@ -1660,14 +1641,8 @@ public class ProductV1Controller {
                 prod.put("status", vcs.getStatus());
                 prod.put("statusName", st.getStatusNameTh() == null ? "" : st.getStatusNameTh());
                 prod.put("statusNameEn", st.getStatusNameEn() == null ? "" : st.getStatusNameEn());
-                if (shelfTmp != null) {
-                    prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
-                    prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
-                } else {
-                    prod.put("template", "");
-                    prod.put("templateName", "");
-                }
-
+                prod.put("template", shelfTmp.getUuid() == null ? "" : shelfTmp.getUuid());
+                prod.put("templateName", shelfTmp.getTmpName() == null ? "" : shelfTmp.getTmpName());
                 prod.put("businessLine", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessLine()));
                 prod.put("businessDept", ValidUtils.null2NoData(vcs.getProdUuid().getBusinessDept()));
                 prod.put("company", ValidUtils.null2NoData(vcs.getProdUuid().getCompany()));
@@ -2046,42 +2021,6 @@ public class ProductV1Controller {
                     .put("description", "" + e);
         }
 
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "infobycode/{prodCode}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getProductInfoByprodCode(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String prodCode,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException, ParseException {//statusCode ==> lookup_value
-        log.info(String.format("GET : /shelf/product/v1/infobycode/%s", prodCode));
-        logger.info(String.format("GET : /shelf/product/v1/infobycode/%s", prodCode));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
-        List<ShelfProduct> prodList = new ArrayList<>();
-        ShelfProductDao prodDao = new ShelfProductDao();
-        ShelfProduct prod = new ShelfProduct();
-        try {
-            prodList = prodDao.getProductByCode(subState, prodCode);
-            String prodUuid = null;
-            int status = 213;
-            if (prodList != null || prodList.size() > 0) {
-                for (ShelfProduct data : prodList) {
-                    prod.setUuid(ValidUtils.null2NoData(data.getUuid()));
-                    prodUuid = ValidUtils.null2NoData(data.getUuid());
-                }
-                System.out.println("prodUuid  : " + prodUuid);
-                returnVal.put("datas", ProductUtils.infoProductsByUuidStatus(subState, prodUuid, status));
-            }
-
-        } catch (JSONException | NullPointerException | HibernateException | ParseException e) {
-            log.info("" + e);
-            logger.info(e.getMessage());
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
 }

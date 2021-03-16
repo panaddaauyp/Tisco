@@ -124,25 +124,10 @@ public class ShelfRoleFunc implements Serializable {
     @Size(max = 100)
     @Column(name = "update_by")
     private String updateBy;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 1)
-    @Column(name = "f_terminate")
-    private Character fTerminate;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 1)
-    @Column(name = "f_pause")
-    private Character fPause;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 1)
-    @Column(name = "f_start")
-    private Character fStart;
     @JoinColumn(name = "role_menu_id", referencedColumnName = "uuid")
     @ManyToOne(optional = false)
     private ShelfRoleMenu roleMenuId;
-    
+
     public ShelfRoleFunc() {
     }
 
@@ -150,7 +135,7 @@ public class ShelfRoleFunc implements Serializable {
         this.uuid = uuid;
     }
 
-    public ShelfRoleFunc(String uuid, Character fCreate, Character fEdit, Character fDelete, Character fPreview, Character fExport, Character fApprove, Character fTerminate, Character fPause, Character fStart, int status, String createBy) {
+    public ShelfRoleFunc(String uuid, Character fCreate, Character fEdit, Character fDelete, Character fPreview, Character fExport, Character fApprove, int status, String createBy) {
         this.uuid = uuid;
         this.fCreate = fCreate;
         this.fEdit = fEdit;
@@ -158,9 +143,6 @@ public class ShelfRoleFunc implements Serializable {
         this.fPreview = fPreview;
         this.fExport = fExport;
         this.fApprove = fApprove;
-        this.fTerminate = fTerminate;
-        this.fPause = fPause;
-        this.fStart = fStart;
         this.status = status;
         this.createBy = createBy;
     }
@@ -347,29 +329,6 @@ public class ShelfRoleFunc implements Serializable {
 
     public void setUpdateBy(String updateBy) {
         this.updateBy = updateBy;
-    }
-    public Character getfTerminate() {
-        return fTerminate;
-    }
-
-    public void setfTerminate(Character fTerminate) {
-        this.fTerminate = fTerminate;
-    }
-
-    public Character getfPause() {
-        return fPause;
-    }
-
-    public void setfPause(Character fPause) {
-        this.fPause = fPause;
-    }
-
-    public Character getfStart() {
-        return fStart;
-    }
-
-    public void setfStart(Character fStart) {
-        this.fStart = fStart;
     }
 
     public ShelfRoleMenu getRoleMenuId() {

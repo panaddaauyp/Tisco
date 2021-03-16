@@ -490,54 +490,6 @@ public class UtilityController {
     }
 
     @Log_decorator
-    @RequestMapping(value = "/api/report/list/productonload/{urlname}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListProductReportOnload(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String urlname,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/productonload/%s", urlname));
-        logger.info(String.format("GET : /api/report/list/productonload/%s", urlname));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONArray listProductOnload = new ShelfProductDao().getListProductOnload(subState, urlname);
-            returnVal.put("datas", listProductOnload);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/product/{department}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListProductReportDep(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String department,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/product/%s", department));
-        logger.info(String.format("GET : /api/report/list/product/%s", department));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONArray listProductOnShelf = new ShelfProductDao().getListShelfProductOnShelfDep(subState, department);
-            returnVal.put("datas", listProductOnShelf);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-    @Log_decorator
     @RequestMapping(value = "/api/report/list/status", method = GET)
     @ResponseBody
     public ResponseEntity<?> getListStatusReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
@@ -576,42 +528,11 @@ public class UtilityController {
     }
 
     @Log_decorator
-    @RequestMapping(value = "/api/report/list/statusall", method = GET)
-    @ResponseBody
-    public ResponseEntity<?> getListStatusAllReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
-        logger.info("GET : /api/report/list/statusall");
-        log.info("GET : /api/report/list/statusall");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
-        try {
-            JSONArray retStatus = new JSONArray();
-            List<SysLookup> listStatus = new SysLookupDao().getListSysLookupsAll(subState);
-//            List<Memlookup> listStatus = StatusUtils.getPass(subState);
-            listStatus.forEach((status) -> {
-                JSONObject prodObj = new JSONObject();
-                prodObj.put("uuid", status.getUuid())
-                        .put("lookupCode", status.getLookupCode())
-                        .put("lookupNameTh", status.getLookupNameTh())
-                        .put("lookupNameEn", status.getLookupNameEn())
-                        .put("lookupValue", status.getLookupValue());
-                retStatus.put(prodObj);
-            });
-            returnVal.put("datas", retStatus);
-        } catch (JSONException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/stateall", method = RequestMethod.GET)
+    @RequestMapping(value = "/api/report/list/state", method = GET)
     @ResponseBody
     public ResponseEntity<?> getListStateReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) {
-        log.info(String.format("GET : /api/report/list/stateall/"));
-        logger.info(String.format("GET : /api/report/list/stateall/"));
+        logger.info("GET : /api/report/list/state");
+        log.info("GET : /api/report/list/state");
         JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
         try {
             JSONArray retState = new JSONArray();
@@ -1026,8 +947,8 @@ public class UtilityController {
             lkValues.add("expire");
 //            lkValues.add("cancel");
             lkValues.add("waittodelete");
-            lkValues.add("waittoterminate");
-            lkValues.add("waittopause");
+//            lkValues.add("waittoterminate");
+//            lkValues.add("waittopause");
             lkValues.add("terminate");
             lkValues.add("pause");
             lkValues.add("reject");
@@ -1113,187 +1034,4 @@ public class UtilityController {
         }
         return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
     }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/status/{product}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListProductStatus(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String product,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/status/%s", product));
-        logger.info(String.format("GET : /api/report/list/status/%s", product));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONArray listStatus = new ShelfProductDao().getListMapProductStatus(subState, product);
-            returnVal.put("datas", listStatus);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/component/{status}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListStatusComponent(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String status,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/component/%s", status));
-        logger.info(String.format("GET : /api/report/list/component/%s", status));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONArray listcomponent = new ShelfProductDao().getListMapStatusComponent(subState, status);
-            returnVal.put("datas", listcomponent);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/statebycompstatus/", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListStateByReq(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @RequestBody String reqBody,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/statebycompstatus/"));
-        logger.info(String.format("GET : /api/report/list/statebycompstatus/"));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONObject datas = new JSONObject(reqBody);
-            String component = "", status = "";
-            if (datas.has("data")) {
-                JSONObject data = datas.getJSONObject("data");
-                String component_data = data.getString("component");
-                String status_data = data.getString("status");
-                component = component_data != null || component_data != "" ? data.getString("component") : "";
-                status = status_data != null || status_data != "" ? data.getString("status") : "";
-            }
-            JSONArray liststate = new ShelfProductDao().getListStateByCompStatus(subState, component, status);
-            returnVal.put("datas", liststate);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/statebystatus/{status}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListStateByStatus(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String status,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/statebystatus/%s", status));
-        logger.info(String.format("GET : /api/report/list/statebystatus/%s", status));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONArray liststate = new ShelfProductDao().getListStateByStataus(subState, status);
-            returnVal.put("datas", liststate);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/statebycomponent/{component}", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getDataListStateByComponent(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @PathVariable String component,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/statebycomponent/%s", component));
-        logger.info(String.format("GET : /api/report/list/statebycomponent/%s", component));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONArray liststate = new ShelfProductDao().getListStateByComponent(subState, component);
-            returnVal.put("datas", liststate);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }
-
-    @Log_decorator
-    @RequestMapping(value = "/api/report/list/component", method = GET)
-    @ResponseBody
-    public ResponseEntity<?> getListComponentReport(HttpServletRequest request, @RequestHeader(value = "sub_state", required = false) String subState) throws SQLException {
-        logger.info("GET : /api/report/list/component");
-        log.info("GET : /api/report/list/component");
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONArray());
-        try {
-            JSONArray listComp = new ShelfProductDao().getListShelfComponentOnShelf(subState);
-            returnVal.put("datas", listComp);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));
-    }
-
-    /*@Log_decorator
-    @RequestMapping(value = "/api/report/list/state/", method = RequestMethod.GET)
-    @ResponseBody
-    public ResponseEntity<?> getListStateByReq(HttpSession session, HttpServletResponse response,
-            HttpServletRequest request,
-            @RequestBody String reqBody,
-            @RequestHeader(value = "sub_state", required = false) String subState
-    ) throws SQLException {
-        log.info(String.format("GET : /api/report/list/state/"));
-        logger.info(String.format("GET : /api/report/list/state/"));
-        JSONObject returnVal = new JSONObject().put("status", 200).put("description", "").put("datas", new JSONObject());
-        try {
-            JSONObject datas = new JSONObject(reqBody);
-            String component = "", status = "";
-            if (datas.has("data")) {
-                JSONObject data = datas.getJSONObject("data");
-                String component_data = data.getString("component");
-                String status_data = data.getString("status")
-                component = component_data != null || component_data != "" ? data.getString("component") : "";
-                status = status_data != null || status_data != "" ? data.getString("status") : "";
-            }
-            JSONArray liststate = new ShelfProductDao().getListStateByCompStatus(subState, component, status);
-            returnVal.put("datas", liststate);
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            log.error("" + e);
-            //e.printStackTrace();
-            returnVal.put("status", 500)
-                    .put("description", "" + e);
-        }
-        return (new ResponseEntity<>(returnVal.toString(), headersJSON, HttpStatus.OK));    
-    }*/
 }

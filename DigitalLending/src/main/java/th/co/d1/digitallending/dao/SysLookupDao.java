@@ -276,22 +276,4 @@ public class SysLookupDao {
         }
         return list;
     }
-
-    public List<SysLookup> getListSysLookupsAll(String dbEnv) {
-        List<SysLookup> list = new ArrayList<>();
-        Transaction trans = null;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            trans = session.beginTransaction();
-            Criteria criteria = session.createCriteria(SysLookup.class);
-            list = criteria.list();
-            trans.commit();
-        } catch (HibernateException | NullPointerException e) {
-            if (trans != null) {
-                trans.rollback();
-            }
-            logger.info(e.getMessage());
-            throw e;
-        }
-        return list;
-    }
 }

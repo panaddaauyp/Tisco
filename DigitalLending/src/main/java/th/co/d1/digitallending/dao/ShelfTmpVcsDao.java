@@ -269,24 +269,6 @@ public class ShelfTmpVcsDao {
         return shelfTmp;
     }
 
-    public List<ShelfTmpVcs> getActiveInActiveList(String dbEnv) {
-        List<ShelfTmpVcs> shelfTmp = new ArrayList<>();
-        Transaction trans = null;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            trans = session.beginTransaction();
-            Criteria criteria = session.createCriteria(ShelfTmpVcs.class);
-            shelfTmp = criteria.list();
-            trans.commit();
-        } catch (HibernateException | NullPointerException e) {
-            if (null != trans) {
-                trans.rollback();
-            }
-            logger.info(e.getMessage());
-            throw e;
-        }
-        return shelfTmp;
-    }
-
     public List<ShelfTmpVcs> getShelfTmpVcsByTmpUUID(String dbEnv, String tmpUuid, String tmpVcsUuid) {
         List<ShelfTmpVcs> listVcs = new ArrayList<>();
         Transaction trans = null;

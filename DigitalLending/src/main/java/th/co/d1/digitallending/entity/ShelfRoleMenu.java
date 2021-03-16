@@ -107,7 +107,7 @@ public class ShelfRoleMenu implements Serializable {
     @JoinColumn(name = "role_uuid", referencedColumnName = "uuid")
     @ManyToOne(optional = false)
     private ShelfRole roleUuid;
-    
+
     public ShelfRoleMenu() {
     }
 

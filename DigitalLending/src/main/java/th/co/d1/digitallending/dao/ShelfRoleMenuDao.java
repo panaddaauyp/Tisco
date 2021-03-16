@@ -5,10 +5,6 @@
  */
 package th.co.d1.digitallending.dao;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -19,13 +15,11 @@ import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
-import org.json.JSONArray;
 import org.json.JSONObject;
 import th.co.d1.digitallending.entity.ShelfMenu;
 import th.co.d1.digitallending.entity.ShelfRoleFunc;
 import th.co.d1.digitallending.entity.ShelfRoleMenu;
 import static th.co.d1.digitallending.util.HibernateUtil.getSessionMaster;
-import th.co.d1.digitallending.util.ValidUtils;
 
 /**
  *
@@ -65,95 +59,6 @@ public class ShelfRoleMenuDao {
         return list;
     }
 
-    public JSONArray getShelfRoleMenusArray(String dbEnv, String[] role, Integer status) throws SQLException {
-        JSONArray list = new JSONArray();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        String roleTxt = "";
-
-        for (int i = 0; i < role.length; i++) {
-            if (i != (role.length - 1)) {
-                roleTxt = roleTxt + "'" + role[i] + "',";
-            } else {
-                roleTxt = roleTxt + "'" + role[i] + "'";
-            }
-        }
-        try {
-            Session session = getSessionMaster(dbEnv).openSession();
-            List params = new ArrayList<>();
-//            params.add(roleTxt);
-            StringBuilder cmd = new StringBuilder();
-
-//            cmd.append("select  distinct m.* from t_shelf_role_menu rm "
-//                    + "INNER JOIN  t_shelf_role r on r.uuid =  rm.role_uuid "
-//                    + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
-//                    + "where r.role_id in ("+roleTxt+") "
-//                    + "order by m.menu_name ");
-            cmd.append("SELECT m.uuid,m.menu_code,m.menu_name,m.description,m.menu_url,m.attr1, "
-//            cmd.append("SELECT m.* , "
-                    + "CASE WHEN SUM (CASE WHEN f_create = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_create, "
-                    + "CASE WHEN SUM(CASE WHEN f_edit = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_edit, "
-                    + "CASE WHEN SUM(CASE WHEN f_delete = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_delete, "
-                    + "CASE WHEN SUM(CASE WHEN f_preview = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_preview, "
-                    + "CASE WHEN SUM(CASE WHEN f_approve = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_approve, "
-                    + "CASE WHEN SUM(CASE WHEN f_terminate = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_terminate, "
-                    + "CASE WHEN SUM(CASE WHEN f_pause = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_pause, "
-                    + "CASE WHEN SUM(CASE WHEN f_start = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_start, "
-                    + "CASE WHEN SUM(CASE WHEN f_export = 'Y' THEN 1 ELSE 0 END) > 0 THEN 'Y' ELSE 'N' END as f_export "
-                    + "from t_shelf_role_menu rm "
-                    + "INNER JOIN  t_shelf_role r on r.uuid =  rm.role_uuid "
-                    + "INNER JOIN  t_shelf_role_func f on rm.uuid =  f.role_menu_id "
-                    + "INNER JOIN  t_shelf_menu m on rm.menu_uuid =  m.uuid "
-                    + "where r.role_id in (" + roleTxt + ") "
-                    + "group by m.uuid,m.menu_code,m.menu_name,m.description,m.menu_url,m.attr1 "
-//                    + "group by m.uuid,m.menu_code "
-                    + "order by m.menu_name");
-
-             ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-            // if (params.size() > 0) {
-            //     for (int i = 0; i < params.size(); i++) {
-            //         if (params.get(i) instanceof String) {
-            //             ps.setString(i + 1, (String) params.get(i));
-            //         } else {
-            //             ps.setInt(i + 1, (Integer) params.get(i));
-            //         }
-            //     }
-            // }
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                JSONObject obj = new JSONObject().put("menucode", ValidUtils.null2NoData(rs.getString("menu_code")))
-                        .put("menuname", ValidUtils.null2NoData(rs.getString("menu_name")))
-                        .put("menuid", ValidUtils.null2NoData(rs.getString("uuid")))
-                        .put("menudesc", ValidUtils.null2NoData(rs.getString("description")))
-                        .put("menuurl", ValidUtils.null2NoData(rs.getString("menu_url")))
-                        .put("seqNo", ValidUtils.null2NoData(rs.getString("attr1")))
-                        .put("fpreview", ValidUtils.null2NoData(rs.getString("f_preview")))
-                        .put("fcreate", ValidUtils.null2NoData(rs.getString("f_create")))
-                        .put("fdelete", ValidUtils.null2NoData(rs.getString("f_delete")))
-                        .put("fapprove", ValidUtils.null2NoData(rs.getString("f_approve")))
-                        .put("fstart", ValidUtils.null2NoData(rs.getString("f_start")))
-                        .put("fpause", ValidUtils.null2NoData(rs.getString("f_pause")))
-                        .put("fterminate", ValidUtils.null2NoData(rs.getString("f_terminate")))
-                        .put("fedit", ValidUtils.null2NoData(rs.getString("f_edit")))
-                        .put("fexport", ValidUtils.null2NoData(rs.getString("f_export")))
-                        ;
-
-                list.put(obj);
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
-        }
-        return list;
-    }
-
     public List<ShelfRoleMenu> getShelfRolesMenus(String dbEnv, String[] role, Integer status) {
         List<ShelfRoleMenu> list = new ArrayList<>();
         Transaction trans = null;
@@ -176,57 +81,6 @@ public class ShelfRoleMenuDao {
             }
             logger.info(e.getMessage());
             throw e;
-        }
-        return list;
-    }
-
-    public List<ShelfRoleMenu> getRolesMenusByRoleID(String dbEnv, String[] role, Integer status) throws SQLException {
-        List<ShelfRoleMenu> list = new ArrayList<>();
-        JSONArray ret = new JSONArray();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            List params = new ArrayList<>();
-            StringBuilder cmd = new StringBuilder();
-            if (status != null) {
-                cmd.append("SELECT * FROM T_SHELF_ROLE_MENU WHERE ROLE_UUID IN ( "
-                        + "SELECT UUID FROM T_SHELF_ROLE WHERE STATUS = 213 ");
-                if (null != role) {
-                    cmd.append("AND ROLE_ID IN ( ? ");
-                    params.add(role);
-                    cmd.append(" ) )");
-                }
-            }
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-            if (params.size() > 0) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (params.get(i) instanceof String) {
-                        ps.setString(i + 1, (String) params.get(i));
-                    } else {
-                        ps.setInt(i + 1, (Integer) params.get(i));
-                    }
-                }
-            }
-            System.out.println("-----" + ps);
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                JSONObject obj = new JSONObject().put("uuid", ValidUtils.null2NoData(rs.getString("UUID")));
-//                        .put("seqNo", ValidUtils.null2NoData(rs.getString("SEQ_NO")))
-//                        .put("compCode", ValidUtils.null2NoData(rs.getString("COMP_CODE")))
-//                        .put("compName", ValidUtils.null2NoData(rs.getString("COMP_NAME")));
-                ret.put(obj);
-            }
-            System.out.println("ret--" + ret);
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
         }
         return list;
     }
@@ -276,61 +130,45 @@ public class ShelfRoleMenuDao {
         return role;
     }
 
-//    public JSONObject saveShelfShelfRoleMenuFunction(String dbEnv, List<ShelfRoleMenu> list, String username) {
-//        JSONObject resp = new JSONObject();
-//        Transaction trans = null;
-//        try (Session session = getSessionMaster(dbEnv).openSession()) {
-//            Date sysdate = new Date();
-//            trans = session.beginTransaction();
-//            for (ShelfRoleMenu roleMenu : list) {
-//                if (null == roleMenu.getCreateAt()) {
-//                    roleMenu.setCreateAt(sysdate);
-//                    roleMenu.setCreateBy(username);
-//                } else {
-//                    roleMenu.setUpdateAt(sysdate);
-//                    roleMenu.setUpdateBy(username);
-//                }
-//                session.saveOrUpdate(roleMenu);
-//                for (ShelfRoleFunc func : roleMenu.getShelfRoleFuncList()) {
-//                    func.setRoleMenuId(roleMenu);
-//                    if (null == roleMenu.getCreateAt()) {
-//                        func.setCreateAt(sysdate);
-//                        func.setCreateBy(username);
-//                    } else {
-//                        func.setUpdateAt(sysdate);
-//                        func.setUpdateBy(username);
-//                    }
-//                    session.saveOrUpdate(func);
-//                }
-//            }
-//            trans.commit();
-//            resp.put("status", true);
-//        } catch (HibernateException | NullPointerException e) {
-//            logger.info(e.getMessage());
-//            e.printStackTrace();
-//            if (null != trans) {
-//                trans.rollback();
-//            }
-//            resp.put("status", false);
-//            resp.put("description", "" + e);
-//        }
-//        return resp;
-//    }
-    public ShelfRoleMenu saveShelfRoleMenu(String dbEnv, ShelfRoleMenu list, String username) {
+    public JSONObject saveShelfShelfRoleMenuFunction(String dbEnv, List<ShelfRoleMenu> list, String username) {
+        JSONObject resp = new JSONObject();
         Transaction trans = null;
-        try {
-            Session session = getSessionMaster(dbEnv).openSession();
+        try (Session session = getSessionMaster(dbEnv).openSession()) {
+            Date sysdate = new Date();
             trans = session.beginTransaction();
-            session.saveOrUpdate(list);
+            for (ShelfRoleMenu roleMenu : list) {
+                if (null == roleMenu.getCreateAt()) {
+                    roleMenu.setCreateAt(sysdate);
+                    roleMenu.setCreateBy(username);
+                } else {
+                    roleMenu.setUpdateAt(sysdate);
+                    roleMenu.setUpdateBy(username);
+                }
+                session.saveOrUpdate(roleMenu);
+                for (ShelfRoleFunc func : roleMenu.getShelfRoleFuncList()) {
+                    func.setRoleMenuId(roleMenu);
+                    if (null == roleMenu.getCreateAt()) {
+                        func.setCreateAt(sysdate);
+                        func.setCreateBy(username);
+                    } else {
+                        func.setUpdateAt(sysdate);
+                        func.setUpdateBy(username);
+                    }
+                    session.saveOrUpdate(func);
+                }
+            }
             trans.commit();
+            resp.put("status", true);
         } catch (HibernateException | NullPointerException e) {
             logger.info(e.getMessage());
             //e.printStackTrace();
             if (null != trans) {
                 trans.rollback();
             }
+            resp.put("status", false);
+            resp.put("description", "" + e);
         }
-        return list;
+        return resp;
     }
 
     public List<ShelfRoleMenu> getShelfRoleByRoleMenu(String dbEnv, String roleUid, String menuUid, Integer status) {
@@ -358,135 +196,6 @@ public class ShelfRoleMenuDao {
             }
             logger.info(e.getMessage());
             throw e;
-        }
-        return list;
-    }
-
-    public List<ShelfRoleMenu> getRolesMenusByRoleUuid(String dbEnv, String roleUuid) {
-        List<ShelfRoleMenu> list = new ArrayList<>();
-        Transaction trans = null;
-        int status = 225;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            trans = session.beginTransaction();
-            Criteria criteria = session.createCriteria(ShelfRoleMenu.class);
-            if (null != roleUuid && roleUuid != "") {
-                criteria.add(Restrictions.eq("roleUuid.uuid", roleUuid));
-                criteria.add(Restrictions.ne("status", status));
-            }
-            list = criteria.list();
-            trans.commit();
-        } catch (HibernateException | NullPointerException e) {
-            if (trans != null) {
-                trans.rollback();
-            }
-            logger.info(e.getMessage());
-            throw e;
-        }
-        return list;
-    }
-
-    public JSONObject deleteRM(String dbEnv, String Uuid, String statusApprove, String username) {
-        Transaction trans = null;
-        PreparedStatement ps = null;
-        Date sysdate = new Date();
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            trans = session.beginTransaction();
-            StringBuilder cmd = new StringBuilder();
-            cmd.append("UPDATE T_SHELF_ROLE_MENU SET UPDATE_AT = ? , UPDATE_BY = ?, ATTR9 = ?, ATTR10 = ? WHERE UUID = ?");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-            ps.setString(1, sysdate.toString());
-            ps.setString(2, username);
-            ps.setString(3, statusApprove);
-            ps.setString(4, statusApprove);
-            ps.setString(5, Uuid);
-            ps.executeUpdate();
-            trans.commit();
-            ps.close();
-            return new JSONObject().put("status", true).put("description", "");
-        } catch (HibernateException | NullPointerException | SQLException e) {
-            logger.info(e.getMessage());
-            //e.printStackTrace();
-            if (null != trans) {
-                trans.rollback();
-            }
-            return new JSONObject().put("status", false).put("description", "" + e);
-        } finally {
-            try {
-                if (ps != null) {
-                    ps.close();
-                }
-            } catch (SQLException ex) {
-                logger.info(ex.getMessage());
-            }
-        }
-    }
-
-    public JSONObject updateByRoleID(String dbEnv, String roleID, String username, int status) {
-        Transaction trans = null;
-        PreparedStatement ps = null;
-        Date sysdate = new Date();
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            trans = session.beginTransaction();
-            StringBuilder cmd = new StringBuilder();
-            cmd.append("UPDATE T_SHELF_ROLE_MENU A SET "
-                    + "STATUS = " + status + " ,"
-                    + "UPDATE_AT = '" + sysdate.toString() + "', "
-                    + "UPDATE_BY = '" + username + "', "
-                    + "ATTR10 = " + status + ", "
-                    + "ATTR9 = CONCAT(A.ATTR9,'/'," + status + ") "
-                    + "where a.role_uuid = '" + roleID + "' ");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-
-            ps.executeUpdate();
-            trans.commit();
-            ps.close();
-            return new JSONObject().put("status", true).put("description", "");
-        } catch (HibernateException | NullPointerException | SQLException e) {
-            logger.info(e.getMessage());
-            //e.printStackTrace();
-            if (null != trans) {
-                trans.rollback();
-            }
-            return new JSONObject().put("status", false).put("description", "" + e);
-        } finally {
-            try {
-                if (ps != null) {
-                    ps.close();
-                }
-            } catch (SQLException ex) {
-                logger.info(ex.getMessage());
-            }
-        }
-    }
-
-    public JSONArray geByRoleID(String dbEnv, String roleID, String username) throws SQLException {
-        JSONArray list = new JSONArray();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            List params = new ArrayList<>();
-            StringBuilder cmd = new StringBuilder();
-            cmd.append("select uuid "
-                    + "from t_shelf_role_menu a "
-                    + "where a.role_uuid = '" + roleID + "' "
-                    + "AND a.status != 213");
-            ps = session.doReturningWork((Connection conn) -> conn).prepareStatement(cmd.toString());
-
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                JSONObject obj = new JSONObject().put("uuid", ValidUtils.null2NoData(rs.getString("uuid")));
-                list.put(obj);
-            }
-        } catch (HibernateException | NullPointerException e) {
-            logger.info(e.getMessage());
-            throw e;
-        } finally {
-            if (rs != null) {
-                rs.close();
-            }
-            if (ps != null) {
-                ps.close();
-            }
         }
         return list;
     }

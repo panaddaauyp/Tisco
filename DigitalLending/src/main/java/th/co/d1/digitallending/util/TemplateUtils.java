@@ -149,68 +149,6 @@ public class TemplateUtils {
         return returnVal;
     }
 
-    public JSONArray getActiveInActiveTemplateList(String dbEnv) {
-        JSONArray returnVal = new JSONArray();
-        try {
-            List<ShelfTmpVcs> list = new ShelfTmpVcsDao().getActiveInActiveList(dbEnv);
-            for (ShelfTmpVcs vcs : list) {
-                List<ShelfTmpDetail> shelfTmpDetail = new ShelfTmpDetailDao().getActiveInActiveByVcsUuid(dbEnv, vcs.getUuid());
-                List<JSONObject> compList = new ArrayList<>();
-                for (ShelfTmpDetail tmpDtl : shelfTmpDetail) {
-                    if (tmpDtl.getFlagEnable()) {
-                        JSONObject tmpObj = new JSONObject();
-                        tmpObj.put("uuid", ValidUtils.null2NoData(tmpDtl.getCompUuid().getUuid()));
-                        tmpObj.put("seqNo", ValidUtils.null2NoData(tmpDtl.getSeqNo()));
-                        tmpObj.put("compCode", ValidUtils.null2NoData(tmpDtl.getCompUuid().getCompCode()));
-                        tmpObj.put("compName", ValidUtils.null2NoData(tmpDtl.getCompUuid().getCompName()));
-                        tmpObj.put("description", ValidUtils.null2NoData(tmpDtl.getCompUuid().getDescription()));
-                        tmpObj.put("pattern", ValidUtils.null2NoData(tmpDtl.getCompUuid().getPattern()));
-                        tmpObj.put("value", ValidUtils.null2NoData(tmpDtl.getValue()));
-                        compList.add(tmpObj);
-                    }
-                }
-                Utils.sortJSONObjectByKey(compList, "seqNo", true);
-                Memlookup memLookup = new SysLookupDao().getMemLookupByCode(dbEnv, ValidUtils.null2NoData(vcs.getStatus()));
-                JSONObject eachList = new JSONObject()
-                        .put("id", vcs.getTmpUuid().getUuid())
-                        .put("vcsUuid", vcs.getUuid())
-                        .put("name", vcs.getTmpUuid().getTmpName())
-                        .put("value", vcs.getTmpUuid().getValue())
-                        .put("currentVcsUuid", (vcs.getTmpUuid().getCurrentVcsUuid()))
-                        .put("previousVcsUuid", vcs.getTmpUuid().getPreviousVcsUuid())
-                        .put("description", vcs.getDescription())
-                        .put("attr1", vcs.getAttr1())
-                        .put("attr2", vcs.getAttr2())
-                        .put("attr3", vcs.getAttr3())
-                        .put("attr4", vcs.getAttr4())
-                        .put("attr5", vcs.getAttr5())
-                        .put("attr6", vcs.getAttr6())
-                        .put("attr7", vcs.getAttr7())
-                        .put("attr8", vcs.getAttr8())
-                        .put("attr9", vcs.getAttr9())
-                        .put("attr10", vcs.getAttr10())
-                        .put("status", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupcode()) : "")
-                        .put("statusNameTh", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameth()) : "")
-                        .put("statusNameEn", null != memLookup ? ValidUtils.null2NoData(memLookup.getLookupnameen()) : "")
-                        .put("version", vcs.getVersion())
-                        .put("companyCode", vcs.getTmpUuid().getCompanyCode())
-                        .put("businessDept", vcs.getTmpUuid().getBussinessDept())
-                        .put("businessLine", vcs.getTmpUuid().getBusinessLine())
-                        .put("updateDate", (vcs.getUpdateAt() == null ? "" : vcs.getUpdateAt()))
-                        .put("updateBy", (vcs.getUpdateBy() == null ? "" : vcs.getUpdateBy()))
-                        .put("createDate", vcs.getCreateAt())
-                        .put("createBy", vcs.getCreateBy())
-                        .put("effectiveDate", vcs.getEffectiveDate())
-                        .put("component", compList);
-                returnVal.put(eachList);
-            }
-        } catch (JSONException | NullPointerException | HibernateException e) {
-            logger.info(e.getMessage());
-            throw e;
-        }
-        return returnVal;
-    }
-
     public JSONArray getTemplateListByStatus(String dbEnv, List status) {
         JSONArray returnVal = new JSONArray();
         try {

@@ -207,27 +207,6 @@ public class ShelfTmpDetailDao {
 
     }
 
-    public List<ShelfTmpDetail> getActiveInActiveByVcsUuid(String dbEnv, String vcsUuid) {
-        List<ShelfTmpDetail> shelfTmpDetailList = new ArrayList<>();
-        Transaction trans = null;
-        try (Session session = getSessionMaster(dbEnv).openSession()) {
-            trans = session.beginTransaction();
-            Criteria criteria = session.createCriteria(ShelfTmpDetail.class);
-            criteria.createAlias("vcsUuid", "vcs");
-            criteria.add(Restrictions.eq("vcs.uuid", vcsUuid));
-            shelfTmpDetailList = criteria.list();
-            trans.commit();
-        } catch (HibernateException | NullPointerException e) {
-            if (null != trans) {
-                trans.rollback();
-            }
-            logger.info(e.getMessage());
-            throw e;
-        }
-        return shelfTmpDetailList;
-
-    }
-
     public ShelfComp getShelfComponentByCompUUIDAndTemplateVCS(String dbEnv, String compUuid, String templateVCS, boolean compUseFlag) {
         ShelfComp shelfComp = new ShelfComp();
         Transaction trans = null;

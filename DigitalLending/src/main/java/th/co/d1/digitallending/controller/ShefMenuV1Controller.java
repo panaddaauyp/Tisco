@@ -64,11 +64,10 @@ public class ShefMenuV1Controller {
             List<ShelfMenu> list = dao.getShelfMenuList(subState, statusActive);
             for (ShelfMenu menu : list) {
                 JSONObject obj = new JSONObject()
-                        .put("menuuuid", ValidUtils.null2NoData(menu.getUuid()))
-                        .put("menucode", ValidUtils.null2NoData(menu.getMenuCode()))
-                        .put("menuname", ValidUtils.null2NoData(menu.getMenuName()))
-                        .put("menulevel", ValidUtils.null2NoData(menu.getAttr1()))
-                        .put("menuurl", ValidUtils.null2NoData(menu.getMenuUrl()))
+                        .put("uuid", ValidUtils.null2NoData(menu.getUuid()))
+                        .put("menu_code", ValidUtils.null2NoData(menu.getMenuCode()))
+                        .put("menu_name", ValidUtils.null2NoData(menu.getMenuName()))
+                        .put("menu_url", ValidUtils.null2NoData(menu.getMenuUrl()))
                         .put("description", ValidUtils.null2NoData(menu.getDescription()))
                         .put("status", menu.getStatus());
 
